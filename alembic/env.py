@@ -6,14 +6,19 @@ from agent_eval_platform.db import Base
 from agent_eval_platform.models import analysis, catalog, run  # noqa: F401
 
 config = context.config
-settings = Settings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
 target_metadata = Base.metadata
+
+
+def resolve_database_url() -> str:
+    settings = Settings()
+    if "database_url" in settings.model_fields_set:
+        return settings.database_url
+    return config.get_main_option("sqlalchemy.url")
 
 
 def run_migrations_offline() -> None:
     context.configure(
-        url=config.get_main_option("sqlalchemy.url"),
+        url=resolve_database_url(),
         target_metadata=target_metadata,
         literal_binds=True,
         compare_type=True,
@@ -23,8 +28,10 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    configuration = dict(config.get_section(config.config_ini_section, {}) or {})
+    configuration["sqlalchemy.url"] = resolve_database_url()
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
