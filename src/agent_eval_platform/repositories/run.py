@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from agent_eval_platform.models.catalog import CaseRecord
+from agent_eval_platform.models.catalog import CaseRecord, SuiteRecord
 from agent_eval_platform.models.run import (
     ExecutionTaskRecord,
     RunCaseRecord,
@@ -22,6 +22,10 @@ class RunRepository:
     def get_cases_for_suite(self, suite_id: str) -> list[CaseRecord]:
         stmt = select(CaseRecord).where(CaseRecord.suite_id == suite_id).order_by(CaseRecord.id)
         return list(self.session.scalars(stmt))
+
+    def suite_exists(self, suite_id: str) -> bool:
+        stmt = select(SuiteRecord.id).where(SuiteRecord.id == suite_id)
+        return self.session.scalar(stmt) is not None
 
     def add_suite_instance(self, run_id: str, suite_id: str) -> RunSuiteRecord:
         record = RunSuiteRecord(

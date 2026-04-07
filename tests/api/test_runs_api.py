@@ -47,3 +47,36 @@ def test_create_run_enqueues_one_task_per_case() -> None:
     assert response.status_code == 201
     assert payload["task_count"] == 1
     assert payload["status"] == "queued"
+
+
+def test_create_run_rejects_missing_suite() -> None:
+    client = TestClient(create_app())
+
+    client.post(
+        "/api/v1/catalog/targets",
+        json={
+            "id": "cockpit_agents",
+            "name": "cockpit-agents",
+            "adapter_types": ["http"],
+            "profile": {"supported_modes": ["contract"]},
+        },
+    )
+    client.post(
+        "/api/v1/catalog/environments",
+        json={"id": "local_mock", "name": "local-mock", "profile": {"execution_mode": "direct"}},
+    )
+
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "run_id": "r-missing",
+            "target_id": "cockpit_agents",
+            "env_id": "local_mock",
+            "suite_ids": ["missing-suite"],
+            "execution_topology": "direct",
+        },
+    )
+
+    payload = response.json()
+    assert response.status_code == 404
+    assert "missing-suite" in payload["detail"]

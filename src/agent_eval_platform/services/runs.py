@@ -1,3 +1,5 @@
+from fastapi import HTTPException, status
+
 from agent_eval_platform.repositories.run import RunRepository
 from agent_eval_platform.schemas.run import RunCreate, RunRead
 
@@ -7,6 +9,13 @@ class RunService:
         self.repository = repository
 
     def create_run(self, payload: RunCreate) -> RunRead:
+        for suite_id in payload.suite_ids:
+            if not self.repository.suite_exists(suite_id):
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"suite '{suite_id}' not found",
+                )
+
         self.repository.create_run(payload.run_id, payload.target_id, payload.env_id)
 
         task_count = 0
