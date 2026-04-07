@@ -8,6 +8,7 @@ from agent_eval_platform.models.run import (
     RunRecord,
     RunSuiteRecord,
 )
+from agent_eval_platform.orchestration_ids import build_orchestration_id
 
 
 class RunRepository:
@@ -29,7 +30,7 @@ class RunRepository:
 
     def add_suite_instance(self, run_id: str, suite_id: str) -> RunSuiteRecord:
         record = RunSuiteRecord(
-            id=f"{run_id}:{suite_id}",
+            id=build_orchestration_id("rs", run_id, suite_id),
             run_id=run_id,
             suite_id=suite_id,
             status="queued",
@@ -39,7 +40,7 @@ class RunRepository:
 
     def add_case_instance(self, run_suite_id: str, case_id: str) -> RunCaseRecord:
         record = RunCaseRecord(
-            id=f"{run_suite_id}:{case_id}",
+            id=build_orchestration_id("rc", run_suite_id, case_id),
             run_suite_id=run_suite_id,
             case_id=case_id,
             status="queued",
@@ -49,7 +50,7 @@ class RunRepository:
 
     def add_execution_task(self, run_case_id: str, executor_type: str) -> ExecutionTaskRecord:
         record = ExecutionTaskRecord(
-            id=f"task:{run_case_id}",
+            id=build_orchestration_id("task", run_case_id, executor_type),
             run_case_id=run_case_id,
             executor_type=executor_type,
             status="queued",

@@ -1,6 +1,8 @@
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from agent_eval_platform.api.app import create_app
+from agent_eval_platform.models.run import ExecutionTaskRecord, RunCaseRecord, RunSuiteRecord
 
 
 def test_create_run_enqueues_one_task_per_case() -> None:
@@ -80,3 +82,62 @@ def test_create_run_rejects_missing_suite() -> None:
     payload = response.json()
     assert response.status_code == 404
     assert "missing-suite" in payload["detail"]
+
+
+def test_create_run_with_long_ids_keeps_orchestration_ids_within_64_chars() -> None:
+    client = TestClient(create_app())
+    run_id = "run-" + ("r" * 40)
+    suite_id = "suite-" + ("s" * 40)
+    case_id = "case-" + ("c" * 40)
+
+    client.post(
+        "/api/v1/catalog/targets",
+        json={
+            "id": "cockpit_agents",
+            "name": "cockpit-agents",
+            "adapter_types": ["http"],
+            "profile": {"supported_modes": ["contract"]},
+        },
+    )
+    client.post(
+        "/api/v1/catalog/environments",
+        json={"id": "local_mock", "name": "local-mock", "profile": {"execution_mode": "direct"}},
+    )
+    client.post(
+        "/api/v1/catalog/suites",
+        json={"id": suite_id, "mode": "contract", "definition": {"case_ids": [case_id]}},
+    )
+    client.post(
+        "/api/v1/catalog/cases",
+        json={
+            "id": case_id,
+            "suite_id": suite_id,
+            "definition": {"input": {"method": "GET", "path": "/health"}},
+        },
+    )
+
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "run_id": run_id,
+            "target_id": "cockpit_agents",
+            "env_id": "local_mock",
+            "suite_ids": [suite_id],
+            "execution_topology": "direct",
+        },
+    )
+
+    assert response.status_code == 201
+
+    runtime = client.app.state.runtime
+    with runtime.session_factory() as session:
+        run_suite_ids = list(session.scalars(select(RunSuiteRecord.id)))
+        run_case_ids = list(session.scalars(select(RunCaseRecord.id)))
+        task_ids = list(session.scalars(select(ExecutionTaskRecord.id)))
+
+    assert len(run_suite_ids) == 1
+    assert len(run_case_ids) == 1
+    assert len(task_ids) == 1
+    assert len(run_suite_ids[0]) <= 64
+    assert len(run_case_ids[0]) <= 64
+    assert len(task_ids[0]) <= 64
