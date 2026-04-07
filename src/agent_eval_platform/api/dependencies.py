@@ -1,6 +1,6 @@
 from collections.abc import Generator
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
 from agent_eval_platform.config import Settings
@@ -8,16 +8,27 @@ from agent_eval_platform.db import Base, create_session_factory
 from agent_eval_platform.repositories.catalog import CatalogRepository
 from agent_eval_platform.services.catalog import CatalogService
 
-_settings = Settings()
-_session_factory = create_session_factory(_settings)
+
+class RuntimeState:
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+        self.session_factory = create_session_factory(settings)
 
 
-def init_database() -> None:
-    Base.metadata.create_all(bind=_session_factory.kw["bind"])
+def create_runtime(settings: Settings | None = None) -> RuntimeState:
+    return RuntimeState(settings or Settings())
 
 
-def get_session() -> Generator[Session, None, None]:
-    with _session_factory() as session:
+def init_database(runtime: RuntimeState) -> None:
+    Base.metadata.create_all(bind=runtime.session_factory.kw["bind"])
+
+
+def get_runtime(request: Request) -> RuntimeState:
+    return request.app.state.runtime
+
+
+def get_session(runtime: RuntimeState = Depends(get_runtime)) -> Generator[Session, None, None]:
+    with runtime.session_factory() as session:
         yield session
 
 

@@ -25,7 +25,7 @@ class CatalogRepository:
         record = TargetRecord(
             id=payload.id,
             name=payload.name,
-            adapter_types=",".join(payload.adapter_types),
+            adapter_types=json.dumps(payload.adapter_types),
             raw_profile_json=json.dumps(payload.profile),
         )
         self.session.add(record)
@@ -68,3 +68,7 @@ class CatalogRepository:
         self.session.commit()
         self.session.refresh(record)
         return record
+
+    def suite_exists(self, suite_id: str) -> bool:
+        stmt = select(SuiteRecord.id).where(SuiteRecord.id == suite_id)
+        return self.session.scalar(stmt) is not None

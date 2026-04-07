@@ -1,5 +1,7 @@
 import json
 
+from fastapi import HTTPException, status
+
 from agent_eval_platform.repositories.catalog import CatalogRepository
 from agent_eval_platform.schemas.catalog import (
     CaseCreate,
@@ -22,7 +24,7 @@ class CatalogService:
         return TargetRead(
             id=record.id,
             name=record.name,
-            adapter_types=record.adapter_types.split(","),
+            adapter_types=self._parse_adapter_types(record.adapter_types),
             profile=json.loads(record.raw_profile_json),
         )
 
@@ -32,7 +34,7 @@ class CatalogService:
             TargetRead(
                 id=record.id,
                 name=record.name,
-                adapter_types=record.adapter_types.split(","),
+                adapter_types=self._parse_adapter_types(record.adapter_types),
                 profile=json.loads(record.raw_profile_json),
             )
             for record in records
@@ -55,9 +57,25 @@ class CatalogService:
         )
 
     def create_case(self, payload: CaseCreate) -> CaseRead:
+        if not self.repository.suite_exists(payload.suite_id):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"suite '{payload.suite_id}' not found",
+            )
         record = self.repository.create_case(payload)
         return CaseRead(
             id=record.id,
             suite_id=record.suite_id,
             definition=json.loads(record.raw_definition_json),
         )
+
+    @staticmethod
+    def _parse_adapter_types(raw_value: str) -> list[str]:
+        try:
+            decoded = json.loads(raw_value)
+        except json.JSONDecodeError:
+            return [] if raw_value == "" else raw_value.split(",")
+
+        if isinstance(decoded, list) and all(isinstance(item, str) for item in decoded):
+            return decoded
+        return [] if raw_value == "" else raw_value.split(",")
