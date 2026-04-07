@@ -23,8 +23,15 @@ class HttpAdapter:
             json=payload,
             headers=headers,
         )
+        raw_text = response.text
+        body: Any | None = None
+        if raw_text.strip():
+            try:
+                body = response.json()
+            except ValueError:
+                body = None
         return AdapterResult(
             status_code=response.status_code,
-            body=response.json(),
-            raw_text=response.text,
+            body=body,
+            raw_text=raw_text,
         )

@@ -5,7 +5,7 @@ from typing import Any, Protocol
 @dataclass
 class AdapterResult:
     status_code: int
-    body: dict[str, Any]
+    body: Any | None
     raw_text: str
 
 
