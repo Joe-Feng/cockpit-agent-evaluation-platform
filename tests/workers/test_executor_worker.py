@@ -1,7 +1,9 @@
+import pytest
+
 from agent_eval_platform.execution.queue import lease_tasks
 from agent_eval_platform.models.run import ExecutionTaskRecord
 from agent_eval_platform.storage.artifacts import LocalArtifactStorage
-from workers.executor.main import ExecutorWorker
+from workers.executor.main import ExecutorWorker, main
 
 
 def test_executor_worker_processes_leased_task(session, tmp_path) -> None:
@@ -24,3 +26,11 @@ def test_executor_worker_processes_leased_task(session, tmp_path) -> None:
 
     task = session.get(ExecutionTaskRecord, "task:case-001")
     assert task.status in {"succeeded", "failed"}
+
+
+def test_executor_worker_main_requires_process_manager() -> None:
+    with pytest.raises(
+        SystemExit,
+        match="Use uvicorn or a process manager to launch the executor worker",
+    ):
+        main()

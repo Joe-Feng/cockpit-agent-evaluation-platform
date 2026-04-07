@@ -29,3 +29,7 @@ class ExecutorWorker:
             task_record = self.session.get(ExecutionTaskRecord, task.task_id)
             task_record.status = "succeeded" if result.status_code == 0 else "failed"
             self.session.commit()
+
+
+def main() -> None:
+    raise SystemExit("Use uvicorn or a process manager to launch the executor worker")
