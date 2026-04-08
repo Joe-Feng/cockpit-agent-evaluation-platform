@@ -28,6 +28,40 @@ class RunRepository:
         stmt = select(RunRecord).where(RunRecord.id == run_id)
         return self.session.scalar(stmt)
 
+    def list_recent_runs(self, *, limit: int = 20) -> list[RunRecord]:
+        stmt = select(RunRecord).order_by(RunRecord.created_at.desc(), RunRecord.id.desc()).limit(limit)
+        return list(self.session.scalars(stmt))
+
+    def list_runs_for_target(self, target_id: str, *, limit: int = 20) -> list[RunRecord]:
+        stmt = (
+            select(RunRecord)
+            .where(RunRecord.target_id == target_id)
+            .order_by(RunRecord.created_at.desc(), RunRecord.id.desc())
+            .limit(limit)
+        )
+        return list(self.session.scalars(stmt))
+
+    def list_runs_for_suite(self, suite_id: str) -> list[RunRecord]:
+        stmt = (
+            select(RunRecord)
+            .join(RunSuiteRecord, RunSuiteRecord.run_id == RunRecord.id)
+            .where(RunSuiteRecord.suite_id == suite_id)
+            .order_by(RunRecord.created_at.asc(), RunRecord.id.asc())
+        )
+        return list(self.session.scalars(stmt))
+
+    def list_runs_for_case(self, case_id: str, *, limit: int = 20) -> list[RunRecord]:
+        stmt = (
+            select(RunRecord)
+            .join(RunSuiteRecord, RunSuiteRecord.run_id == RunRecord.id)
+            .join(RunCaseRecord, RunCaseRecord.run_suite_id == RunSuiteRecord.id)
+            .where(RunCaseRecord.case_id == case_id)
+            .order_by(RunRecord.created_at.desc(), RunRecord.id.desc())
+            .distinct()
+            .limit(limit)
+        )
+        return list(self.session.scalars(stmt))
+
     def run_exists(self, run_id: str) -> bool:
         stmt = select(RunRecord.id).where(RunRecord.id == run_id)
         return self.session.scalar(stmt) is not None

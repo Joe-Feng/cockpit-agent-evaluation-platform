@@ -60,6 +60,33 @@ class ReportService:
             "regression_signals": regression_signals,
         }
 
+    def build_pass_rate_diff(self, run_id: str) -> dict[str, Any] | None:
+        run = self.repository.get_run(run_id)
+        if run is None:
+            return None
+
+        suite_ids = self.repository.list_suite_ids_for_run(run_id)
+        task_count = self.repository.count_tasks_for_run(run_id)
+        passed_count = self.repository.count_tasks_for_run_with_status(run_id, "succeeded")
+        failed_count = self.repository.count_tasks_for_run_with_status(run_id, "failed")
+        leased_count = self.repository.count_tasks_for_run_with_status(run_id, "leased")
+        queued_count = self.repository.count_tasks_for_run_with_status(run_id, "queued")
+        run_status = self._derive_status(
+            persisted_status=run.status,
+            task_count=task_count,
+            passed_count=passed_count,
+            failed_count=failed_count,
+            leased_count=leased_count,
+            queued_count=queued_count,
+        )
+        return self._build_pass_rate_diff(
+            run=run,
+            run_status=run_status,
+            suite_ids=suite_ids,
+            task_count=task_count,
+            passed_count=passed_count,
+        )
+
     def _build_normalized_results(self, *, run_id: str, target_id: str) -> list[dict[str, Any]]:
         target_profile = self.repository.get_target_profile(target_id)
         result_mapping = target_profile.get("result_mapping")
@@ -88,28 +115,47 @@ class ReportService:
         task_count: int,
         passed_count: int,
     ) -> list[dict[str, Any]]:
-        if task_count == 0 or run_status not in {"succeeded", "failed"}:
+        diff = self._build_pass_rate_diff(
+            run=run,
+            run_status=run_status,
+            suite_ids=suite_ids,
+            task_count=task_count,
+            passed_count=passed_count,
+        )
+        if diff is None:
             return []
+        signal = build_regression_signal("pass_rate", diff)
+        return [signal] if bool(signal.get("is_regression")) else []
+
+    def _build_pass_rate_diff(
+        self,
+        *,
+        run: RunRecord,
+        run_status: str,
+        suite_ids: list[str],
+        task_count: int,
+        passed_count: int,
+    ) -> dict[str, Any] | None:
+        if task_count == 0 or run_status not in {"succeeded", "failed"}:
+            return None
 
         baseline_run = self._find_comparable_baseline_run(run=run, suite_ids=suite_ids)
         if baseline_run is None:
-            return []
+            return None
 
         baseline_task_count = self.repository.count_tasks_for_run(baseline_run.id)
         if baseline_task_count == 0:
-            return []
+            return None
 
         baseline_passed_count = self.repository.count_tasks_for_run_with_status(
             baseline_run.id,
             "succeeded",
         )
-        diff = diff_against_baseline(
+        return diff_against_baseline(
             current_value=passed_count / task_count,
             baseline_value=baseline_passed_count / baseline_task_count,
             metric_id="pass_rate",
         )
-        signal = build_regression_signal("pass_rate", diff)
-        return [signal] if bool(signal.get("is_regression")) else []
 
     def _find_comparable_baseline_run(
         self,
