@@ -1,9 +1,11 @@
+from datetime import datetime
 import json
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from agent_eval_platform.models.catalog import CaseRecord, SuiteRecord, TargetRecord
+from agent_eval_platform.models.analysis import ArtifactRecord
 from agent_eval_platform.models.run import (
     ExecutionTaskRecord,
     RunCaseRecord,
@@ -133,6 +135,40 @@ class RunRepository:
             .join(RunSuiteRecord, RunCaseRecord.run_suite_id == RunSuiteRecord.id)
             .where(RunSuiteRecord.run_id == run_id)
             .order_by(ExecutionTaskRecord.run_case_id, ExecutionTaskRecord.id)
+        )
+        return list(self.session.scalars(stmt))
+
+    def list_execution_result_artifacts(self, task_ids: list[str]) -> list[ArtifactRecord]:
+        if not task_ids:
+            return []
+        stmt = (
+            select(ArtifactRecord)
+            .where(
+                ArtifactRecord.owner_type == "execution_task",
+                ArtifactRecord.owner_id.in_(task_ids),
+                ArtifactRecord.artifact_type == "execution_result",
+            )
+            .order_by(ArtifactRecord.owner_id, ArtifactRecord.id)
+        )
+        return list(self.session.scalars(stmt))
+
+    def list_candidate_baseline_runs(
+        self,
+        *,
+        current_run_id: str,
+        target_id: str,
+        env_id: str,
+        created_at: datetime,
+    ) -> list[RunRecord]:
+        stmt = (
+            select(RunRecord)
+            .where(
+                RunRecord.id != current_run_id,
+                RunRecord.target_id == target_id,
+                RunRecord.env_id == env_id,
+                RunRecord.created_at <= created_at,
+            )
+            .order_by(RunRecord.created_at.desc(), RunRecord.id.desc())
         )
         return list(self.session.scalars(stmt))
 
