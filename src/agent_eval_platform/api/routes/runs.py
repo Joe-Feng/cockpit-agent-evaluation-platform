@@ -13,3 +13,9 @@ router = APIRouter(prefix="/api/v1/runs", tags=["runs"])
 def create_run(payload: RunCreate, session: Session = Depends(get_session)) -> RunRead:
     service = RunService(RunRepository(session))
     return service.create_run(payload)
+
+
+@router.post("/{run_id}/rerun", response_model=RunRead, status_code=status.HTTP_201_CREATED)
+def rerun_run(run_id: str, session: Session = Depends(get_session)) -> RunRead:
+    service = RunService(RunRepository(session))
+    return service.create_rerun(run_id)

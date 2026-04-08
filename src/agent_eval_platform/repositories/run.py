@@ -1,6 +1,6 @@
 import json
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from agent_eval_platform.models.catalog import CaseRecord, SuiteRecord, TargetRecord
@@ -21,6 +21,14 @@ class RunRepository:
         record = RunRecord(id=run_id, target_id=target_id, env_id=env_id, status="queued")
         self.session.add(record)
         return record
+
+    def get_run(self, run_id: str) -> RunRecord | None:
+        stmt = select(RunRecord).where(RunRecord.id == run_id)
+        return self.session.scalar(stmt)
+
+    def run_exists(self, run_id: str) -> bool:
+        stmt = select(RunRecord.id).where(RunRecord.id == run_id)
+        return self.session.scalar(stmt) is not None
 
     def get_cases_for_suite(self, suite_id: str) -> list[CaseRecord]:
         stmt = select(CaseRecord).where(CaseRecord.suite_id == suite_id).order_by(CaseRecord.id)
@@ -57,6 +65,51 @@ class RunRepository:
         )
         self.session.add(record)
         return record
+
+    def list_suite_ids_for_run(self, run_id: str) -> list[str]:
+        stmt = select(RunSuiteRecord.suite_id).where(RunSuiteRecord.run_id == run_id).order_by(
+            RunSuiteRecord.id
+        )
+        return list(self.session.scalars(stmt))
+
+    def count_cases_for_run(self, run_id: str) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(RunCaseRecord)
+            .join(RunSuiteRecord, RunCaseRecord.run_suite_id == RunSuiteRecord.id)
+            .where(RunSuiteRecord.run_id == run_id)
+        )
+        return int(self.session.scalar(stmt) or 0)
+
+    def count_cases_for_run_with_status(self, run_id: str, status: str) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(RunCaseRecord)
+            .join(RunSuiteRecord, RunCaseRecord.run_suite_id == RunSuiteRecord.id)
+            .where(RunSuiteRecord.run_id == run_id, RunCaseRecord.status == status)
+        )
+        return int(self.session.scalar(stmt) or 0)
+
+    def count_tasks_for_run(self, run_id: str) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(ExecutionTaskRecord)
+            .join(RunCaseRecord, ExecutionTaskRecord.run_case_id == RunCaseRecord.id)
+            .join(RunSuiteRecord, RunCaseRecord.run_suite_id == RunSuiteRecord.id)
+            .where(RunSuiteRecord.run_id == run_id)
+        )
+        return int(self.session.scalar(stmt) or 0)
+
+    def get_execution_topology_for_run(self, run_id: str) -> str | None:
+        stmt = (
+            select(ExecutionTaskRecord.executor_type)
+            .join(RunCaseRecord, ExecutionTaskRecord.run_case_id == RunCaseRecord.id)
+            .join(RunSuiteRecord, RunCaseRecord.run_suite_id == RunSuiteRecord.id)
+            .where(RunSuiteRecord.run_id == run_id)
+            .order_by(ExecutionTaskRecord.id)
+            .limit(1)
+        )
+        return self.session.scalar(stmt)
 
     def add_case_instance(self, run_suite_id: str, case_id: str) -> RunCaseRecord:
         record = RunCaseRecord(

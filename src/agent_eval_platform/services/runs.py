@@ -46,6 +46,24 @@ class RunService:
         self.repository.session.commit()
         return RunRead(run_id=payload.run_id, status="queued", task_count=task_count)
 
+    def create_rerun(self, source_run_id: str) -> RunRead:
+        source_run = self.repository.get_run(source_run_id)
+        if source_run is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"run '{source_run_id}' not found",
+            )
+
+        payload = RunCreate(
+            run_id=self._build_rerun_id(source_run_id),
+            target_id=source_run.target_id,
+            env_id=source_run.env_id,
+            suite_ids=self.repository.list_suite_ids_for_run(source_run_id),
+            execution_topology=self.repository.get_execution_topology_for_run(source_run_id)
+            or "direct",
+        )
+        return self.create_run(payload)
+
     def _build_dispatch_payload(
         self,
         *,
@@ -117,6 +135,16 @@ class RunService:
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"suite '{case.suite_id}' could not be mapped to a dispatch contract",
         )
+
+    def _build_rerun_id(self, source_run_id: str) -> str:
+        base_run_id = f"{source_run_id}-rerun"
+        if not self.repository.run_exists(base_run_id):
+            return base_run_id
+
+        suffix = 2
+        while self.repository.run_exists(f"{base_run_id}-{suffix}"):
+            suffix += 1
+        return f"{base_run_id}-{suffix}"
 
     @staticmethod
     def _resolve_native_suite_mapping(*, target_profile: dict, native_contract: Any) -> dict[str, Any]:
