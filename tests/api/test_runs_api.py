@@ -92,11 +92,12 @@ def test_create_run_persists_native_test_dispatch_payload() -> None:
                 "native_test_contract": {
                     "command": "python -m pytest",
                     "default_args": ["-q"],
-                    "suite_mapping": {
-                        "cockpit.native.smoke": {
-                            "args": ["tests/native/test_health.py", "-k", "smoke"]
-                        }
-                    },
+                },
+                "suite_mapping": {
+                    "cockpit.native.smoke": {
+                        "adapter": "native_test",
+                        "args": ["tests/native/test_health.py", "-k", "smoke"],
+                    }
                 },
             },
         },

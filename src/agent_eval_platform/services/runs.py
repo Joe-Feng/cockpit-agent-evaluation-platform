@@ -53,11 +53,23 @@ class RunService:
         target_adapter_types: list[str],
     ) -> tuple[str, dict]:
         native_contract = target_profile.get("native_test_contract")
-        native_suite_mapping = (
-            native_contract.get("suite_mapping", {}) if isinstance(native_contract, dict) else {}
-        )
+        native_suite_mapping = target_profile.get("suite_mapping", {})
+        if not isinstance(native_suite_mapping, dict):
+            native_suite_mapping = {}
+        if not native_suite_mapping and isinstance(native_contract, dict):
+            fallback_mapping = native_contract.get("suite_mapping", {})
+            if isinstance(fallback_mapping, dict):
+                native_suite_mapping = fallback_mapping
         if "native_test" in target_adapter_types and case.suite_id in native_suite_mapping:
             suite_config = native_suite_mapping.get(case.suite_id, {})
+            suite_adapter = suite_config.get("adapter", "native_test") if isinstance(
+                suite_config, dict
+            ) else "native_test"
+            if suite_adapter != "native_test":
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"suite '{case.suite_id}' is mapped to unsupported adapter '{suite_adapter}'",
+                )
             default_args = native_contract.get("default_args", [])
             suite_args = suite_config.get("args", []) if isinstance(suite_config, dict) else []
             return "native_test", {
@@ -78,11 +90,14 @@ class RunService:
             if isinstance(case_input.get("headers"), dict):
                 headers.update(case_input["headers"])
 
+            endpoint_template = invoke_contract.get("endpoint_template")
+            if isinstance(endpoint_template, str):
+                endpoint = endpoint_template.format(path=case_input.get("path", ""))
+            else:
+                endpoint = case_input.get("path", invoke_contract.get("endpoint", ""))
             payload = {
-                "endpoint": invoke_contract.get("endpoint_template", "{path}").format(
-                    path=case_input.get("path", "")
-                ),
-                "method": case_input.get("method", "POST"),
+                "endpoint": endpoint,
+                "method": case_input.get("method", invoke_contract.get("method", "POST")),
                 "body": case_input.get("body", {}),
             }
             if headers:
