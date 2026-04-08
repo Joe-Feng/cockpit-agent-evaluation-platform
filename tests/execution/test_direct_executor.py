@@ -15,9 +15,9 @@ class _RecordingHttpAdapter:
 
 class _RecordingNativeTestAdapter:
     def __init__(self) -> None:
-        self.called_command: str | None = None
+        self.called_command: list[str] | None = None
 
-    def execute(self, *, command: str) -> AdapterResult:
+    def execute(self, *, command: list[str]) -> AdapterResult:
         self.called_command = command
         return AdapterResult(status_code=0, body={"status": "ok"}, raw_text="ok")
 
@@ -53,12 +53,29 @@ def test_direct_executor_dispatches_native_test_payload() -> None:
     result = executor.execute(
         {
             "adapter_type": "native_test",
-            "command": "echo hello",
+            "command": ["echo", "hello"],
         }
     )
 
     assert result.status_code == 0
-    assert native_test_adapter.called_command == "echo hello"
+    assert native_test_adapter.called_command == ["echo", "hello"]
+
+
+def test_direct_executor_rejects_native_test_command_that_is_not_list_of_strings() -> None:
+    http_adapter = _RecordingHttpAdapter()
+    native_test_adapter = _RecordingNativeTestAdapter()
+    executor = DirectExecutor(http_adapter=http_adapter, native_test_adapter=native_test_adapter)
+
+    with pytest.raises(
+        ValueError,
+        match="native_test adapter requires command to be list\\[str\\]",
+    ):
+        executor.execute(
+            {
+                "adapter_type": "native_test",
+                "command": "echo hello",
+            }
+        )
 
 
 def test_direct_executor_rejects_unsupported_adapter_type() -> None:

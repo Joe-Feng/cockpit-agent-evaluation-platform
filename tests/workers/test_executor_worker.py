@@ -32,6 +32,12 @@ class _ExplodingExecutor:
         raise self.error
 
 
+class _ExplodingArtifactStorage:
+    def write_json(self, key: str, payload: dict) -> str:
+        del key, payload
+        raise OSError("artifact storage offline")
+
+
 def test_executor_worker_processes_leased_task_with_persisted_payload(session, tmp_path) -> None:
     session.add(
         ExecutionTaskRecord(
@@ -117,6 +123,48 @@ def test_executor_worker_marks_task_failed_when_executor_cannot_start(session, t
     assert attempt.status == "failed"
     assert artifact is not None
     assert "missing-binary" in Path(artifact.storage_uri).read_text(encoding="utf-8")
+
+
+def test_executor_worker_marks_task_failed_when_artifact_storage_fails(session) -> None:
+    session.add(
+        ExecutionTaskRecord(
+            id="task:case-003",
+            run_case_id="case-003",
+            executor_type="direct",
+            adapter_type="native_test",
+            dispatch_payload=json.dumps({"command": ["python", "-m", "pytest", "-q"]}),
+            status="queued",
+            priority=100,
+        )
+    )
+    session.commit()
+
+    executor = _RecordingExecutor(
+        AdapterResult(
+            status_code=0,
+            body={"stdout": "1 passed", "stderr": ""},
+            raw_text="1 passed",
+        )
+    )
+    worker = ExecutorWorker(
+        session=session,
+        artifact_storage=_ExplodingArtifactStorage(),
+    )
+    worker.executor = executor
+
+    worker.process_once(worker_id="executor-1")
+
+    task = session.get(ExecutionTaskRecord, "task:case-003")
+    attempt = session.scalar(
+        select(ExecutionAttemptRecord).where(ExecutionAttemptRecord.task_id == "task:case-003")
+    )
+    artifact = session.scalar(select(ArtifactRecord).where(ArtifactRecord.owner_id == "task:case-003"))
+
+    assert task is not None
+    assert task.status == "failed"
+    assert attempt is not None
+    assert attempt.status == "failed"
+    assert artifact is None
 
 
 def test_executor_worker_main_requires_process_manager() -> None:

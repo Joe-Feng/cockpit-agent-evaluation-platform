@@ -31,5 +31,8 @@ class DirectExecutor:
                 raise ValueError("Unsupported adapter_type: native_test")
             if "command" not in payload:
                 raise ValueError("Missing required fields for native_test adapter: command")
-            return self.native_test_adapter.execute(command=payload["command"])
+            command = payload["command"]
+            if not isinstance(command, list) or not all(isinstance(item, str) for item in command):
+                raise ValueError("native_test adapter requires command to be list[str]")
+            return self.native_test_adapter.execute(command=command)
         raise ValueError(f"Unsupported adapter_type: {adapter_type}")

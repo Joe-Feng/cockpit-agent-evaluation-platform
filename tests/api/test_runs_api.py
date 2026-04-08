@@ -90,7 +90,7 @@ def test_create_run_persists_native_test_dispatch_payload() -> None:
             "profile": {
                 "supported_modes": ["unit_native"],
                 "native_test_contract": {
-                    "command": "python -m pytest",
+                    "command": ["python", "-m", "pytest"],
                     "default_args": ["-q"],
                 },
                 "suite_mapping": {
@@ -153,6 +153,67 @@ def test_create_run_persists_native_test_dispatch_payload() -> None:
             "smoke",
         ]
     }
+
+
+def test_create_run_rejects_invalid_native_test_contract_configuration() -> None:
+    client = TestClient(create_app())
+
+    client.post(
+        "/api/v1/catalog/targets",
+        json={
+            "id": "native_target_invalid",
+            "name": "native-target-invalid",
+            "adapter_types": ["native_test"],
+            "profile": {
+                "supported_modes": ["unit_native"],
+                "native_test_contract": {
+                    "command": ["python", "-m", "pytest"],
+                    "default_args": "-q",
+                },
+                "suite_mapping": {
+                    "cockpit.native.invalid": {
+                        "adapter": "native_test",
+                        "args": ["tests/native/test_health.py"],
+                    }
+                },
+            },
+        },
+    )
+    client.post(
+        "/api/v1/catalog/environments",
+        json={"id": "local_mock", "name": "local-mock", "profile": {"execution_mode": "direct"}},
+    )
+    client.post(
+        "/api/v1/catalog/suites",
+        json={
+            "id": "cockpit.native.invalid",
+            "mode": "unit_native",
+            "definition": {"case_ids": ["native-invalid-001"]},
+        },
+    )
+    client.post(
+        "/api/v1/catalog/cases",
+        json={
+            "id": "native-invalid-001",
+            "suite_id": "cockpit.native.invalid",
+            "definition": {"input": {}},
+        },
+    )
+
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "run_id": "run-native-invalid-001",
+            "target_id": "native_target_invalid",
+            "env_id": "local_mock",
+            "suite_ids": ["cockpit.native.invalid"],
+            "execution_topology": "direct",
+        },
+    )
+
+    payload = response.json()
+    assert response.status_code == 422
+    assert "native_test_contract.default_args" in payload["detail"]
 
 
 def test_create_run_rejects_missing_suite() -> None:
