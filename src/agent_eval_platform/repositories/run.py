@@ -72,6 +72,19 @@ class RunRepository:
         )
         return list(self.session.scalars(stmt))
 
+    def list_run_suites(self, run_id: str) -> list[RunSuiteRecord]:
+        stmt = select(RunSuiteRecord).where(RunSuiteRecord.run_id == run_id).order_by(RunSuiteRecord.id)
+        return list(self.session.scalars(stmt))
+
+    def list_run_cases_for_run(self, run_id: str) -> list[RunCaseRecord]:
+        stmt = (
+            select(RunCaseRecord)
+            .join(RunSuiteRecord, RunCaseRecord.run_suite_id == RunSuiteRecord.id)
+            .where(RunSuiteRecord.run_id == run_id)
+            .order_by(RunCaseRecord.run_suite_id, RunCaseRecord.id)
+        )
+        return list(self.session.scalars(stmt))
+
     def count_cases_for_run(self, run_id: str) -> int:
         stmt = (
             select(func.count())
@@ -113,6 +126,16 @@ class RunRepository:
         )
         return int(self.session.scalar(stmt) or 0)
 
+    def list_execution_tasks_for_run(self, run_id: str) -> list[ExecutionTaskRecord]:
+        stmt = (
+            select(ExecutionTaskRecord)
+            .join(RunCaseRecord, ExecutionTaskRecord.run_case_id == RunCaseRecord.id)
+            .join(RunSuiteRecord, RunCaseRecord.run_suite_id == RunSuiteRecord.id)
+            .where(RunSuiteRecord.run_id == run_id)
+            .order_by(ExecutionTaskRecord.run_case_id, ExecutionTaskRecord.id)
+        )
+        return list(self.session.scalars(stmt))
+
     def get_execution_topology_for_run(self, run_id: str) -> str | None:
         stmt = (
             select(ExecutionTaskRecord.executor_type)
@@ -140,6 +163,7 @@ class RunRepository:
         executor_type: str,
         adapter_type: str,
         dispatch_payload: str,
+        priority: int = 100,
     ) -> ExecutionTaskRecord:
         record = ExecutionTaskRecord(
             id=build_orchestration_id("task", run_case_id, executor_type),
@@ -148,7 +172,7 @@ class RunRepository:
             adapter_type=adapter_type,
             dispatch_payload=dispatch_payload,
             status="queued",
-            priority=100,
+            priority=priority,
         )
         self.session.add(record)
         return record

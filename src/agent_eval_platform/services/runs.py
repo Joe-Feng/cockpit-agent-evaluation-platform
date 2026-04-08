@@ -5,6 +5,7 @@ from typing import Any
 from fastapi import HTTPException, status
 
 from agent_eval_platform.models.catalog import CaseRecord
+from agent_eval_platform.orchestration_ids import build_orchestration_id
 from agent_eval_platform.repositories.run import RunRepository
 from agent_eval_platform.schemas.run import RunCreate, RunRead
 
@@ -54,15 +55,35 @@ class RunService:
                 detail=f"run '{source_run_id}' not found",
             )
 
-        payload = RunCreate(
-            run_id=self._build_rerun_id(source_run_id),
-            target_id=source_run.target_id,
-            env_id=source_run.env_id,
-            suite_ids=self.repository.list_suite_ids_for_run(source_run_id),
-            execution_topology=self.repository.get_execution_topology_for_run(source_run_id)
-            or "direct",
-        )
-        return self.create_run(payload)
+        rerun_id = self._build_rerun_id(source_run_id)
+        self.repository.create_run(rerun_id, source_run.target_id, source_run.env_id)
+
+        suite_id_map: dict[str, str] = {}
+        for source_suite in self.repository.list_run_suites(source_run_id):
+            rerun_suite = self.repository.add_suite_instance(rerun_id, source_suite.suite_id)
+            suite_id_map[source_suite.id] = rerun_suite.id
+
+        case_id_map: dict[str, str] = {}
+        for source_case in self.repository.list_run_cases_for_run(source_run_id):
+            rerun_case = self.repository.add_case_instance(
+                suite_id_map[source_case.run_suite_id],
+                source_case.case_id,
+            )
+            case_id_map[source_case.id] = rerun_case.id
+
+        task_count = 0
+        for source_task in self.repository.list_execution_tasks_for_run(source_run_id):
+            self.repository.add_execution_task(
+                case_id_map[source_task.run_case_id],
+                source_task.executor_type,
+                source_task.adapter_type,
+                source_task.dispatch_payload,
+                priority=source_task.priority,
+            )
+            task_count += 1
+
+        self.repository.session.commit()
+        return RunRead(run_id=rerun_id, status="queued", task_count=task_count)
 
     def _build_dispatch_payload(
         self,
@@ -138,13 +159,22 @@ class RunService:
 
     def _build_rerun_id(self, source_run_id: str) -> str:
         base_run_id = f"{source_run_id}-rerun"
-        if not self.repository.run_exists(base_run_id):
+        if len(base_run_id) <= 64 and not self.repository.run_exists(base_run_id):
             return base_run_id
 
         suffix = 2
-        while self.repository.run_exists(f"{base_run_id}-{suffix}"):
+        while len(f"{base_run_id}-{suffix}") <= 64:
+            candidate = f"{base_run_id}-{suffix}"
+            if not self.repository.run_exists(candidate):
+                return candidate
             suffix += 1
-        return f"{base_run_id}-{suffix}"
+
+        attempt = 1
+        while True:
+            candidate = build_orchestration_id("run", source_run_id, "rerun", str(attempt))
+            if not self.repository.run_exists(candidate):
+                return candidate
+            attempt += 1
 
     @staticmethod
     def _resolve_native_suite_mapping(*, target_profile: dict, native_contract: Any) -> dict[str, Any]:
