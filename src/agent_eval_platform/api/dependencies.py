@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from pathlib import Path
 
 from fastapi import Depends, Request
 from sqlalchemy.orm import Session
@@ -7,12 +8,14 @@ from agent_eval_platform.config import Settings
 from agent_eval_platform.db import Base, create_session_factory
 from agent_eval_platform.repositories.catalog import CatalogRepository
 from agent_eval_platform.services.catalog import CatalogService
+from agent_eval_platform.storage.artifacts import LocalArtifactStorage
 
 
 class RuntimeState:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.session_factory = create_session_factory(settings)
+        self.artifact_storage = LocalArtifactStorage(Path(settings.local_artifact_dir))
 
 
 def create_runtime(settings: Settings | None = None) -> RuntimeState:

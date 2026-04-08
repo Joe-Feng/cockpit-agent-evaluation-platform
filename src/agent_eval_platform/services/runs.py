@@ -92,19 +92,33 @@ class RunService:
         target_profile: dict,
         target_adapter_types: list[str],
     ) -> tuple[str, dict]:
+        case_definition = json.loads(case.raw_definition_json)
+        case_input = case_definition.get("input", {})
+        if not isinstance(case_input, dict):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"case '{case.id}' input must be an object",
+            )
+
         native_contract = target_profile.get("native_test_contract")
-        native_suite_mapping = self._resolve_native_suite_mapping(
+        suite_mapping = self._resolve_suite_mapping(
             target_profile=target_profile,
             native_contract=native_contract,
         )
-        if "native_test" in target_adapter_types and case.suite_id in native_suite_mapping:
+        suite_config = suite_mapping.get(case.suite_id, {})
+        if suite_config and not isinstance(suite_config, dict):
+            raise self._invalid_native_test_contract(
+                f"suite_mapping.{case.suite_id} must be an object"
+            )
+
+        selected_adapter = self._select_adapter_type(
+            target_adapter_types=target_adapter_types,
+            suite_config=suite_config if isinstance(suite_config, dict) else {},
+        )
+
+        if selected_adapter == "native_test":
             if not isinstance(native_contract, dict):
                 raise self._invalid_native_test_contract("native_test_contract must be an object")
-            suite_config = native_suite_mapping.get(case.suite_id, {})
-            if not isinstance(suite_config, dict):
-                raise self._invalid_native_test_contract(
-                    f"suite_mapping.{case.suite_id} must be an object"
-                )
             suite_adapter = suite_config.get("adapter", "native_test")
             if suite_adapter != "native_test":
                 raise HTTPException(
@@ -128,10 +142,54 @@ class RunService:
                 ]
             }
 
+        if selected_adapter == "cli":
+            cli_contract = target_profile.get("cli_contract")
+            if not isinstance(cli_contract, dict):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="cli_contract must be an object",
+                )
+
+            command = self._normalize_cli_command(cli_contract.get("command"))
+            default_args = self._normalize_cli_args(
+                cli_contract.get("default_args", []),
+                field_name="cli_contract.default_args",
+            )
+            suite_args = self._normalize_cli_args(
+                suite_config.get("args", []),
+                field_name=f"suite_mapping.{case.suite_id}.args",
+            )
+            return "cli", {"command": [*command, *default_args, *suite_args]}
+
+        if selected_adapter == "python_sdk":
+            sdk_contract = target_profile.get("python_sdk_contract")
+            if not isinstance(sdk_contract, dict):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="python_sdk_contract must be an object",
+                )
+
+            module_path = sdk_contract.get("module_path")
+            callable_name = sdk_contract.get("callable_name")
+            if not isinstance(module_path, str) or not module_path:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="python_sdk_contract.module_path must be a non-empty string",
+                )
+            if not isinstance(callable_name, str) or not callable_name:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="python_sdk_contract.callable_name must be a non-empty string",
+                )
+
+            return "python_sdk", {
+                "module_path": module_path,
+                "callable_name": callable_name,
+                "payload": case_input,
+            }
+
         invoke_contract = target_profile.get("invoke_contract", {})
-        if "http" in target_adapter_types and isinstance(invoke_contract, dict):
-            case_definition = json.loads(case.raw_definition_json)
-            case_input = case_definition.get("input", {})
+        if selected_adapter == "http" and isinstance(invoke_contract, dict):
             headers = {}
             if isinstance(invoke_contract.get("headers"), dict):
                 headers.update(invoke_contract["headers"])
@@ -177,15 +235,24 @@ class RunService:
             attempt += 1
 
     @staticmethod
-    def _resolve_native_suite_mapping(*, target_profile: dict, native_contract: Any) -> dict[str, Any]:
-        native_suite_mapping = target_profile.get("suite_mapping", {})
-        if isinstance(native_suite_mapping, dict) and native_suite_mapping:
-            return native_suite_mapping
+    def _resolve_suite_mapping(*, target_profile: dict, native_contract: Any) -> dict[str, Any]:
+        suite_mapping = target_profile.get("suite_mapping", {})
+        if isinstance(suite_mapping, dict) and suite_mapping:
+            return suite_mapping
         if isinstance(native_contract, dict):
             fallback_mapping = native_contract.get("suite_mapping", {})
             if isinstance(fallback_mapping, dict):
                 return fallback_mapping
         return {}
+
+    @staticmethod
+    def _select_adapter_type(*, target_adapter_types: list[str], suite_config: dict[str, Any]) -> str | None:
+        mapped_adapter = suite_config.get("adapter")
+        if isinstance(mapped_adapter, str):
+            return mapped_adapter
+        if len(target_adapter_types) == 1:
+            return target_adapter_types[0]
+        return "http" if "http" in target_adapter_types else None
 
     def _normalize_native_test_command(self, raw_command: Any) -> list[str]:
         if isinstance(raw_command, str):
@@ -203,6 +270,31 @@ class RunService:
     def _normalize_native_test_args(self, raw_args: Any, *, field_name: str) -> list[str]:
         if not isinstance(raw_args, list) or not all(isinstance(item, str) for item in raw_args):
             raise self._invalid_native_test_contract(f"{field_name} must be list[str]")
+        return raw_args
+
+    def _normalize_cli_command(self, raw_command: Any) -> list[str]:
+        if isinstance(raw_command, str):
+            command = shlex.split(raw_command)
+        elif isinstance(raw_command, list) and all(isinstance(item, str) for item in raw_command):
+            command = raw_command
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="cli_contract.command must be a shell string or list[str]",
+            )
+        if not command:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="cli_contract.command must not be empty",
+            )
+        return command
+
+    def _normalize_cli_args(self, raw_args: Any, *, field_name: str) -> list[str]:
+        if not isinstance(raw_args, list) or not all(isinstance(item, str) for item in raw_args):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"{field_name} must be list[str]",
+            )
         return raw_args
 
     @staticmethod

@@ -2,13 +2,14 @@ from pathlib import Path
 
 import httpx
 
+from agent_eval_platform.adapters.cli import CliAdapter
 from agent_eval_platform.adapters.http import HttpAdapter
 from agent_eval_platform.adapters.native_test import NativeTestAdapter
+from agent_eval_platform.adapters.python_sdk import PythonSdkAdapter
+from agent_eval_platform.execution.artifacts import persist_execution_artifact
 from agent_eval_platform.execution.direct_executor import DirectExecutor
 from agent_eval_platform.execution.queue import lease_tasks
-from agent_eval_platform.models.analysis import ArtifactRecord
 from agent_eval_platform.models.run import ExecutionAttemptRecord, ExecutionTaskRecord
-from agent_eval_platform.orchestration_ids import build_orchestration_id
 
 
 class ExecutorWorker:
@@ -18,6 +19,8 @@ class ExecutorWorker:
         self.executor = DirectExecutor(
             http_adapter=HttpAdapter(httpx.Client(base_url="http://127.0.0.1:8000")),
             native_test_adapter=NativeTestAdapter(),
+            cli_adapter=CliAdapter(),
+            python_sdk_adapter=PythonSdkAdapter(),
         )
 
     def process_once(self, worker_id: str) -> None:
@@ -53,28 +56,18 @@ class ExecutorWorker:
 
     @staticmethod
     def _is_success(*, adapter_type: str, status_code: int) -> bool:
-        if adapter_type == "native_test":
+        if adapter_type in {"native_test", "cli", "python_sdk"}:
             return status_code == 0
         return 200 <= status_code < 400
 
     def _persist_artifact(self, *, task_id: str, attempt_id: str, body: dict) -> str:
-        try:
-            storage_uri = self.artifact_storage.write_json(attempt_id, body)
-            self.session.add(
-                ArtifactRecord(
-                    id=build_orchestration_id("artifact", task_id, attempt_id),
-                    owner_type="execution_task",
-                    owner_id=task_id,
-                    artifact_type="execution_result",
-                    storage_uri=storage_uri,
-                    size_bytes=Path(storage_uri).stat().st_size,
-                )
-            )
-            self.session.commit()
-            return "stored"
-        except Exception:
-            self.session.rollback()
-            return "failed"
+        return persist_execution_artifact(
+            self.session,
+            self.artifact_storage,
+            task_id=task_id,
+            attempt_id=attempt_id,
+            body=body,
+        )
 
     def _persist_status(self, *, task_id: str, attempt_id: str, status: str) -> None:
         try:

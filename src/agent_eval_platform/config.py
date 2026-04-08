@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     database_url: str = "sqlite+pysqlite:///:memory:"
+    local_artifact_dir: str = ".artifacts"
     artifact_bucket: str = "agent-eval-artifacts"
     aws_access_key_id: str = "minioadmin"
     aws_secret_access_key: str = "minioadmin"

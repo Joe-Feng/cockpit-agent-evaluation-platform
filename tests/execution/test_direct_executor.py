@@ -22,6 +22,28 @@ class _RecordingNativeTestAdapter:
         return AdapterResult(status_code=0, body={"status": "ok"}, raw_text="ok")
 
 
+class _RecordingCliAdapter:
+    def __init__(self) -> None:
+        self.called_command: list[str] | None = None
+
+    def execute(self, *, command: list[str]) -> AdapterResult:
+        self.called_command = command
+        return AdapterResult(status_code=0, body={"status": "ok"}, raw_text='{"status":"ok"}')
+
+
+class _RecordingPythonSdkAdapter:
+    def __init__(self) -> None:
+        self.called_with: dict | None = None
+
+    def execute(self, *, module_path: str, callable_name: str, payload: dict) -> AdapterResult:
+        self.called_with = {
+            "module_path": module_path,
+            "callable_name": callable_name,
+            "payload": payload,
+        }
+        return AdapterResult(status_code=0, body={"status": "ok"}, raw_text='{"status":"ok"}')
+
+
 def test_direct_executor_dispatches_http_payload() -> None:
     http_adapter = _RecordingHttpAdapter()
     executor = DirectExecutor(http_adapter=http_adapter)
@@ -76,6 +98,44 @@ def test_direct_executor_rejects_native_test_command_that_is_not_list_of_strings
                 "command": "echo hello",
             }
         )
+
+
+def test_direct_executor_dispatches_cli_payload() -> None:
+    http_adapter = _RecordingHttpAdapter()
+    cli_adapter = _RecordingCliAdapter()
+    executor = DirectExecutor(http_adapter=http_adapter, cli_adapter=cli_adapter)
+
+    result = executor.execute(
+        {
+            "adapter_type": "cli",
+            "command": ["target-cli", "--json"],
+        }
+    )
+
+    assert result.status_code == 0
+    assert cli_adapter.called_command == ["target-cli", "--json"]
+
+
+def test_direct_executor_dispatches_python_sdk_payload() -> None:
+    http_adapter = _RecordingHttpAdapter()
+    python_sdk_adapter = _RecordingPythonSdkAdapter()
+    executor = DirectExecutor(http_adapter=http_adapter, python_sdk_adapter=python_sdk_adapter)
+
+    result = executor.execute(
+        {
+            "adapter_type": "python_sdk",
+            "module_path": "/tmp/fake_target.py",
+            "callable_name": "run_case",
+            "payload": {"message": "hello"},
+        }
+    )
+
+    assert result.status_code == 0
+    assert python_sdk_adapter.called_with == {
+        "module_path": "/tmp/fake_target.py",
+        "callable_name": "run_case",
+        "payload": {"message": "hello"},
+    }
 
 
 def test_direct_executor_rejects_unsupported_adapter_type() -> None:

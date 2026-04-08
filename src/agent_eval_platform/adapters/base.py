@@ -12,3 +12,11 @@ class AdapterResult:
 class TargetAdapter(Protocol):
     def execute(self, **kwargs) -> AdapterResult:
         ...
+
+
+ADAPTER_REGISTRY = {
+    "http": "agent_eval_platform.adapters.http.HttpAdapter",
+    "native_test": "agent_eval_platform.adapters.native_test.NativeTestAdapter",
+    "cli": "agent_eval_platform.adapters.cli.CliAdapter",
+    "python_sdk": "agent_eval_platform.adapters.python_sdk.PythonSdkAdapter",
+}
