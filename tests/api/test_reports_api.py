@@ -115,6 +115,50 @@ def test_get_run_report_returns_high_severity_regression_signal_when_pass_rate_d
     }
 
 
+def test_get_run_report_skips_regression_signals_for_in_progress_run() -> None:
+    client = TestClient(create_app())
+    _seed_catalog(client, case_ids=("health-001", "health-002"))
+    _create_run(client, run_id="run-001")
+    _create_run(client, run_id="run-002")
+
+    runtime = client.app.state.runtime
+    with runtime.session_factory() as session:
+        baseline_tasks = _list_tasks_for_run(session, "run-001")
+        current_tasks = _list_tasks_for_run(session, "run-002")
+        for task in baseline_tasks:
+            task.status = "succeeded"
+        current_tasks[0].status = "succeeded"
+        session.commit()
+
+    response = client.get("/api/v1/reports/runs/run-002")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "running"
+    assert response.json()["regression_signals"] == []
+
+
+def test_get_run_report_ignores_incomplete_baseline_run_for_regression() -> None:
+    client = TestClient(create_app())
+    _seed_catalog(client, case_ids=("health-001", "health-002"))
+    _create_run(client, run_id="run-001")
+    _create_run(client, run_id="run-002")
+
+    runtime = client.app.state.runtime
+    with runtime.session_factory() as session:
+        baseline_tasks = _list_tasks_for_run(session, "run-001")
+        current_tasks = _list_tasks_for_run(session, "run-002")
+        baseline_tasks[0].status = "succeeded"
+        current_tasks[0].status = "failed"
+        current_tasks[1].status = "failed"
+        session.commit()
+
+    response = client.get("/api/v1/reports/runs/run-002")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "failed"
+    assert response.json()["regression_signals"] == []
+
+
 def test_get_run_report_returns_empty_regression_signals_without_comparable_baseline() -> None:
     client = TestClient(create_app())
     _seed_catalog(client)

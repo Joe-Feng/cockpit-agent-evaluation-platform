@@ -30,23 +30,25 @@ class ReportService:
         failed_count = self.repository.count_tasks_for_run_with_status(run_id, "failed")
         leased_count = self.repository.count_tasks_for_run_with_status(run_id, "leased")
         queued_count = self.repository.count_tasks_for_run_with_status(run_id, "queued")
+        report_status = self._derive_status(
+            persisted_status=run.status,
+            task_count=task_count,
+            passed_count=passed_count,
+            failed_count=failed_count,
+            leased_count=leased_count,
+            queued_count=queued_count,
+        )
         normalized_results = self._build_normalized_results(run_id=run.id, target_id=run.target_id)
         regression_signals = self._build_regression_signals(
             run=run,
+            run_status=report_status,
             suite_ids=suite_ids,
             task_count=task_count,
             passed_count=passed_count,
         )
         return {
             "run_id": run.id,
-            "status": self._derive_status(
-                persisted_status=run.status,
-                task_count=task_count,
-                passed_count=passed_count,
-                failed_count=failed_count,
-                leased_count=leased_count,
-                queued_count=queued_count,
-            ),
+            "status": report_status,
             "target_id": run.target_id,
             "env_id": run.env_id,
             "suite_ids": suite_ids,
@@ -81,11 +83,12 @@ class ReportService:
         self,
         *,
         run: RunRecord,
+        run_status: str,
         suite_ids: list[str],
         task_count: int,
         passed_count: int,
     ) -> list[dict[str, Any]]:
-        if task_count == 0:
+        if task_count == 0 or run_status not in {"succeeded", "failed"}:
             return []
 
         baseline_run = self._find_comparable_baseline_run(run=run, suite_ids=suite_ids)
@@ -123,7 +126,7 @@ class ReportService:
         )
         for candidate in candidates:
             candidate_suite_ids = self.repository.list_suite_ids_for_run(candidate.id)
-            if tuple(sorted(candidate_suite_ids)) == suite_key:
+            if tuple(sorted(candidate_suite_ids)) == suite_key and self._is_completed_run(candidate):
                 return candidate
         return None
 
@@ -139,6 +142,22 @@ class ReportService:
             return None
         body = payload.get("body")
         return body if isinstance(body, Mapping) else None
+
+    def _is_completed_run(self, run: RunRecord) -> bool:
+        task_count = self.repository.count_tasks_for_run(run.id)
+        passed_count = self.repository.count_tasks_for_run_with_status(run.id, "succeeded")
+        failed_count = self.repository.count_tasks_for_run_with_status(run.id, "failed")
+        leased_count = self.repository.count_tasks_for_run_with_status(run.id, "leased")
+        queued_count = self.repository.count_tasks_for_run_with_status(run.id, "queued")
+        run_status = self._derive_status(
+            persisted_status=run.status,
+            task_count=task_count,
+            passed_count=passed_count,
+            failed_count=failed_count,
+            leased_count=leased_count,
+            queued_count=queued_count,
+        )
+        return run_status in {"succeeded", "failed"}
 
     @staticmethod
     def _derive_status(
