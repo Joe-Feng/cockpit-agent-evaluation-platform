@@ -1,6 +1,8 @@
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from agent_eval_platform.api.app import create_app
+from agent_eval_platform.models.run import ExecutionTaskRecord
 
 
 def test_get_run_report_returns_report_payload() -> None:
@@ -44,10 +46,28 @@ def test_get_run_report_returns_report_payload() -> None:
 
     assert create_response.status_code == 201
 
+    runtime = client.app.state.runtime
+    with runtime.session_factory() as session:
+        task = session.scalar(select(ExecutionTaskRecord))
+        assert task is not None
+        task.status = "succeeded"
+        session.commit()
+
     response = client.get("/api/v1/reports/runs/run-001")
 
     assert response.status_code == 200
-    assert response.json()["run_id"] == "run-001"
+    assert response.json() == {
+        "run_id": "run-001",
+        "status": "queued",
+        "target_id": "cockpit_agents",
+        "env_id": "local_mock",
+        "suite_ids": ["cockpit.contract.api"],
+        "suite_count": 1,
+        "case_count": 1,
+        "task_count": 1,
+        "passed_count": 1,
+        "regression_signals": [],
+    }
 
 
 def test_rerun_endpoint_clones_existing_run() -> None:

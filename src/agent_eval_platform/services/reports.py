@@ -25,6 +25,6 @@ class ReportService:
             "suite_count": len(suite_ids),
             "case_count": self.repository.count_cases_for_run(run_id),
             "task_count": self.repository.count_tasks_for_run(run_id),
-            "passed_count": self.repository.count_cases_for_run_with_status(run_id, "passed"),
+            "passed_count": self.repository.count_tasks_for_run_with_status(run_id, "succeeded"),
             "regression_signals": [],
         }

@@ -100,6 +100,19 @@ class RunRepository:
         )
         return int(self.session.scalar(stmt) or 0)
 
+    def count_tasks_for_run_with_status(self, run_id: str, status: str) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(ExecutionTaskRecord)
+            .join(RunCaseRecord, ExecutionTaskRecord.run_case_id == RunCaseRecord.id)
+            .join(RunSuiteRecord, RunCaseRecord.run_suite_id == RunSuiteRecord.id)
+            .where(
+                RunSuiteRecord.run_id == run_id,
+                ExecutionTaskRecord.status == status,
+            )
+        )
+        return int(self.session.scalar(stmt) or 0)
+
     def get_execution_topology_for_run(self, run_id: str) -> str | None:
         stmt = (
             select(ExecutionTaskRecord.executor_type)
