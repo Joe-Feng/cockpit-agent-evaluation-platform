@@ -1,3 +1,5 @@
+import json
+
 from sqlalchemy.dialects import postgresql
 
 from agent_eval_platform.execution.queue import _build_queued_tasks_query, lease_tasks
@@ -12,6 +14,15 @@ def test_lease_tasks_marks_rows_as_leased(session) -> None:
             id="task:case-001",
             run_case_id="case-001",
             executor_type="direct",
+            adapter_type="http",
+            dispatch_payload=json.dumps(
+                {
+                    "endpoint": "/invoke/health",
+                    "method": "GET",
+                    "body": {},
+                    "headers": {"X-Eval-Mode": "contract"},
+                }
+            ),
             status="queued",
             priority=100,
         )
@@ -21,6 +32,14 @@ def test_lease_tasks_marks_rows_as_leased(session) -> None:
     leased = lease_tasks(session, worker_id="executor-1")
 
     assert leased[0].task_id == "task:case-001"
+    assert leased[0].attempt_id
+    assert leased[0].adapter_type == "http"
+    assert leased[0].dispatch_payload == {
+        "endpoint": "/invoke/health",
+        "method": "GET",
+        "body": {},
+        "headers": {"X-Eval-Mode": "contract"},
+    }
     assert session.get(ExecutionTaskRecord, "task:case-001").status == "leased"
 
 
@@ -37,6 +56,8 @@ def test_lease_tasks_does_not_return_same_task_twice_sequentially(session) -> No
                 id="task:case-001",
                 run_case_id="case-001",
                 executor_type="direct",
+                adapter_type="http",
+                dispatch_payload=json.dumps({"endpoint": "/one", "method": "GET", "body": {}}),
                 status="queued",
                 priority=100,
             ),
@@ -44,6 +65,8 @@ def test_lease_tasks_does_not_return_same_task_twice_sequentially(session) -> No
                 id="task:case-002",
                 run_case_id="case-002",
                 executor_type="direct",
+                adapter_type="http",
+                dispatch_payload=json.dumps({"endpoint": "/two", "method": "GET", "body": {}}),
                 status="queued",
                 priority=90,
             ),
@@ -64,6 +87,8 @@ def test_lease_tasks_generates_attempt_ids_within_64_chars(session) -> None:
             id=task_id,
             run_case_id="case-003",
             executor_type="direct",
+            adapter_type="native_test",
+            dispatch_payload=json.dumps({"command": ["pytest", "-q"]}),
             status="queued",
             priority=100,
         )

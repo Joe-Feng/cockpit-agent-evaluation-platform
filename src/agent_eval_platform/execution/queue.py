@@ -1,3 +1,5 @@
+import json
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -29,9 +31,10 @@ def lease_tasks(session: Session, worker_id: str, limit: int = 1) -> list[Leased
     for task in queued:
         task.status = "leased"
         attempt_no = 1
+        attempt_id = build_orchestration_id("attempt", task.id, str(attempt_no))
         session.add(
             ExecutionAttemptRecord(
-                id=build_orchestration_id("attempt", task.id, str(attempt_no)),
+                id=attempt_id,
                 task_id=task.id,
                 attempt_no=attempt_no,
                 status="leased",
@@ -40,8 +43,11 @@ def lease_tasks(session: Session, worker_id: str, limit: int = 1) -> list[Leased
         leased.append(
             LeasedTask(
                 task_id=task.id,
+                attempt_id=attempt_id,
                 run_case_id=task.run_case_id,
                 executor_type=task.executor_type,
+                adapter_type=task.adapter_type,
+                dispatch_payload=json.loads(task.dispatch_payload),
             )
         )
 

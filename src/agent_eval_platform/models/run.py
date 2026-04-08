@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String
+from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from agent_eval_platform.db import Base
@@ -40,6 +40,8 @@ class ExecutionTaskRecord(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     run_case_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     executor_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    adapter_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    dispatch_payload: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="queued")
     priority: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
 
