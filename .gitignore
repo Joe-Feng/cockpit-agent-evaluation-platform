@@ -9,3 +9,4 @@ build/
 node_modules/
 apps/web/dist/
 alembic/versions/__pycache__/
+.worktrees/
