@@ -1,8 +1,11 @@
+import type { Tone } from "../utils/tone";
+
 type MetricCardProps = {
   label: string;
   value: string;
   detail: string;
-  tone?: "neutral" | "good" | "warm" | "danger";
+  tone?: Tone;
+  variant?: "primary" | "secondary";
 };
 
 export function MetricCard({
@@ -10,9 +13,10 @@ export function MetricCard({
   value,
   detail,
   tone = "neutral",
+  variant = "secondary",
 }: MetricCardProps) {
   return (
-    <article className={`metric-card metric-card--${tone}`}>
+    <article className={`metric-card metric-card--${tone} metric-card--${variant}`}>
       <p className="metric-card__label">{label}</p>
       <strong className="metric-card__value">{value}</strong>
       <p className="metric-card__detail">{detail}</p>

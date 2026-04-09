@@ -1,3 +1,5 @@
+import { mockDashboardApi } from "./mockData";
+
 export type RunSummary = {
   run_id: string;
   status: string;
@@ -69,8 +71,17 @@ export type AlertEvent = {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
+type RuntimeEnv = {
+  DEV?: boolean;
+  VITEST?: boolean;
+};
+
 function buildUrl(path: string): string {
   return `${API_BASE_URL}${path}`;
+}
+
+export function shouldUseMockDashboardData(env: RuntimeEnv = import.meta.env): boolean {
+  return Boolean(env.DEV) && !Boolean(env.VITEST);
 }
 
 export async function fetchJson<T>(path: string): Promise<T> {
@@ -80,12 +91,12 @@ export async function fetchJson<T>(path: string): Promise<T> {
     },
   });
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    throw new Error(`请求失败：${response.status}`);
   }
   return (await response.json()) as T;
 }
 
-export const dashboardApi = {
+const realDashboardApi = {
   getTargetOverview(targetId: string) {
     return fetchJson<TargetOverview>(`/api/v1/dashboard/targets/${targetId}`);
   },
@@ -105,3 +116,5 @@ export const dashboardApi = {
     return fetchJson<{ items: AlertEvent[] }>("/api/v1/alerts/events");
   },
 };
+
+export const dashboardApi = shouldUseMockDashboardData() ? mockDashboardApi : realDashboardApi;

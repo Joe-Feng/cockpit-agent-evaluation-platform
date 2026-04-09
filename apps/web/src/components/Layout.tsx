@@ -1,25 +1,23 @@
 import { NavLink, Outlet } from "react-router-dom";
 
 const navItems = [
-  { to: "/", label: "Target Overview", hint: "Target health and alert posture", end: true },
-  { to: "/runs", label: "Run Center", hint: "Run status and normalized results" },
-  { to: "/cases", label: "Case Explorer", hint: "Replay failure history per case" },
-  { to: "/trends", label: "Trend Dashboard", hint: "Pass-rate drift and momentum" },
-  { to: "/regressions", label: "Regression Center", hint: "Severity queue and alert feed" },
+  { to: "/", label: "目标总览", hint: "目标健康与告警态势", end: true },
+  { to: "/runs", label: "运行中心", hint: "运行状态与结果归一", end: false },
+  { to: "/cases", label: "用例回看", hint: "单用例历史回放", end: false },
+  { to: "/trends", label: "趋势看板", hint: "通过率漂移与走势", end: false },
+  { to: "/regressions", label: "回归中心", hint: "回归队列与告警流", end: false },
 ];
 
 export function Layout() {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="brand-card">
-          <p className="eyebrow">Phase 3</p>
-          <h1>Governance Console</h1>
-          <p className="body-muted">
-            Dashboard, trends, and alerts for agent evaluation operations.
-          </p>
+        <div className="brand-card brand-card--hero">
+          <h1>治理驾驶舱</h1>
+          <p className="body-muted">桌面优先的目标健康、漂移与回归控制台。</p>
         </div>
-        <nav className="nav-list" aria-label="Primary">
+
+        <nav className="nav-list" aria-label="主导航">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -32,23 +30,33 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar-footer">
-          <span className="badge badge--good">Analyzer Ready</span>
-          <span className="badge">Notifier Standby</span>
+
+        <div className="sidebar-status panel panel--sidebar-status">
+          <p className="eyebrow">系统态势</p>
+          <div className="sidebar-footer">
+            <span className="badge badge--good">分析器就绪</span>
+            <span className="badge badge--warm">基线已加载</span>
+            <span className="badge">通知待命</span>
+          </div>
         </div>
       </aside>
+
       <div className="workspace">
-        <header className="masthead">
+        <header className="masthead panel panel--masthead">
           <div>
-            <p className="eyebrow">Agent Evaluation Platform</p>
-            <h2>Dashboard, trend monitoring, and alerting</h2>
+            <p className="eyebrow">运行态势总览</p>
+            <h2>目标健康、漂移与回归</h2>
+            <p className="body-muted">
+              在同一控制台内持续关注套件健康、趋势变化与回归风险。
+            </p>
           </div>
           <div className="masthead__chips">
-            <span className="badge">Single control plane</span>
-            <span className="badge badge--warm">Baseline-aware</span>
-            <span className="badge badge--good">Ops focused</span>
+            <span className="badge">统一控制台</span>
+            <span className="badge badge--warm">风险可见</span>
+            <span className="badge badge--good">桌面工作流</span>
           </div>
         </header>
+
         <main className="page-content">
           <Outlet />
         </main>

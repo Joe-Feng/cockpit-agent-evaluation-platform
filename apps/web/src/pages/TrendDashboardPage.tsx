@@ -22,33 +22,34 @@ export function TrendDashboardPage() {
     <section className="stack">
       <div className="section-header">
         <div>
-          <p className="eyebrow">Trend Dashboard</p>
-          <h3>Baseline-aware pass-rate drift for the active suite scope</h3>
+          <p className="eyebrow">趋势看板</p>
+          <h3>当前套件范围的基线感知通过率趋势</h3>
         </div>
-        {loading ? <span className="badge">Refreshing</span> : null}
+        {loading ? <span className="badge">刷新中</span> : null}
       </div>
-      <div className="metric-grid">
+      <div className="metric-grid metric-grid--trend">
         <MetricCard
-          detail="Completed runs captured in the series"
-          label="Points"
+          detail="趋势中已采集的完成运行数"
+          label="点位数"
           tone="neutral"
           value={String(data.series.length)}
         />
         <MetricCard
-          detail="Most recent pass-rate value"
-          label="Latest Pass Rate"
+          detail="最近一次通过率"
+          label="最新通过率"
           tone={latestPoint && latestPoint.value < 0.8 ? "danger" : "good"}
           value={latestPoint ? `${Math.round(latestPoint.value * 100)}%` : "N/A"}
+          variant="primary"
         />
         <MetricCard
-          detail="Dimension carried into the trend series"
-          label="Dimension"
+          detail="趋势序列携带的观测维度"
+          label="观测维度"
           tone="warm"
-          value={latestPoint?.dimension_key ?? "env=unknown"}
+          value={latestPoint?.dimension_key ?? "环境：未知"}
         />
       </div>
       {error ? <p className="callout">{error}</p> : null}
-      <TrendChart series={data.series} title="Pass Rate Trend" />
+      <TrendChart series={data.series} title="通过率趋势" />
     </section>
   );
 }
