@@ -4,6 +4,7 @@ from agent_eval_platform.api.dependencies import create_runtime, init_database
 from agent_eval_platform.api.routes.alerts import router as alerts_router
 from agent_eval_platform.api.routes.catalog import router as catalog_router
 from agent_eval_platform.api.routes.dashboard import router as dashboard_router
+from agent_eval_platform.api.routes.imports import router as imports_router
 from agent_eval_platform.api.routes.reports import router as reports_router
 from agent_eval_platform.api.routes.runs import router as runs_router
 from agent_eval_platform.config import Settings
@@ -20,6 +21,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"status": "ok"}
 
     app.include_router(catalog_router)
+    app.include_router(imports_router)
     app.include_router(reports_router)
     app.include_router(runs_router)
     app.include_router(dashboard_router)

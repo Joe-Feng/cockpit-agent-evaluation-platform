@@ -49,7 +49,9 @@ class CatalogService:
         )
 
     def create_suite(self, payload: SuiteCreate) -> SuiteRead:
-        record = self.repository.create_suite(payload)
+        record = self.repository.create_suite(payload, commit=False)
+        self.repository.session.commit()
+        self.repository.session.refresh(record)
         return SuiteRead(
             id=record.id,
             mode=record.mode,
@@ -62,7 +64,9 @@ class CatalogService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"suite '{payload.suite_id}' not found",
             )
-        record = self.repository.create_case(payload)
+        record = self.repository.create_case(payload, commit=False)
+        self.repository.session.commit()
+        self.repository.session.refresh(record)
         return CaseRead(
             id=record.id,
             suite_id=record.suite_id,

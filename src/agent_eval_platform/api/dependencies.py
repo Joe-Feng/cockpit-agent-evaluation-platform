@@ -8,6 +8,7 @@ from agent_eval_platform.config import Settings
 from agent_eval_platform.db import Base, create_session_factory
 from agent_eval_platform.repositories.catalog import CatalogRepository
 from agent_eval_platform.services.catalog import CatalogService
+from agent_eval_platform.services.imports import BenchmarkPackageImportService
 from agent_eval_platform.storage.artifacts import LocalArtifactStorage
 
 
@@ -37,3 +38,9 @@ def get_session(runtime: RuntimeState = Depends(get_runtime)) -> Generator[Sessi
 
 def get_catalog_service(session: Session = Depends(get_session)) -> CatalogService:
     return CatalogService(CatalogRepository(session))
+
+
+def get_benchmark_package_import_service(
+    session: Session = Depends(get_session),
+) -> BenchmarkPackageImportService:
+    return BenchmarkPackageImportService(CatalogRepository(session))
