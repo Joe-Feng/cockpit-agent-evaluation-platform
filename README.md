@@ -22,6 +22,24 @@ Independent platform for registering agent targets, running evaluations, collect
 3. Production build: `npm --prefix apps/web run build`
 4. Local smoke flow: `uv run python scripts/smoke_local.py`
 
+## Benchmark Package Import
+
+Benchmark-generated agent-eval packages can be imported into the catalog before you create a run.
+
+Import request example:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/imports/benchmark-agent-package \
+  -H 'Content-Type: application/json' \
+  -d @import-request.json
+```
+
+Recommended workflow:
+
+1. Export one `benchmark-agent-export/v1` zip or JSON package from `cockpit-benchmark`.
+2. POST one extracted package to `/api/v1/imports/benchmark-agent-package` with a valid `env_id` such as `local_mock`.
+3. Create a run against the imported suite after the suite/case records are registered.
+
 ## Runbook
 
 Detailed local setup notes live in `docs/runbooks/local-dev.md`.
