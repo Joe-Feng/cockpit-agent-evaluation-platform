@@ -92,6 +92,16 @@ class RunRepository:
         stmt = select(SuiteRecord.id).where(SuiteRecord.id == suite_id)
         return self.session.scalar(stmt) is not None
 
+    def mark_suite_used(self, suite_id: str) -> None:
+        record = self.session.get(SuiteRecord, suite_id)
+        if record is not None and record.asset_status == "draft":
+            record.asset_status = "used"
+
+    def mark_case_used(self, case_id: str) -> None:
+        record = self.session.get(CaseRecord, case_id)
+        if record is not None and record.asset_status == "draft":
+            record.asset_status = "used"
+
     def add_suite_instance(self, run_id: str, suite_id: str) -> RunSuiteRecord:
         record = RunSuiteRecord(
             id=build_orchestration_id("rs", run_id, suite_id),
@@ -168,7 +178,7 @@ class RunRepository:
             .join(RunCaseRecord, ExecutionTaskRecord.run_case_id == RunCaseRecord.id)
             .join(RunSuiteRecord, RunCaseRecord.run_suite_id == RunSuiteRecord.id)
             .where(RunSuiteRecord.run_id == run_id)
-            .order_by(ExecutionTaskRecord.run_case_id, ExecutionTaskRecord.id)
+            .order_by(ExecutionTaskRecord.id)
         )
         return list(self.session.scalars(stmt))
 
