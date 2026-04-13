@@ -95,3 +95,100 @@ def test_create_case_rejects_orphan_suite() -> None:
     )
 
     assert create_case_response.status_code == 404
+
+
+def test_list_environments_and_suites_exposes_workbench_metadata() -> None:
+    client = TestClient(create_app())
+    client.post(
+        "/api/v1/catalog/environments",
+        json={
+            "id": "local_mock",
+            "name": "local-mock",
+            "profile": {"execution_mode": "direct"},
+        },
+    )
+    client.post(
+        "/api/v1/catalog/suites",
+        json={
+            "id": "suite-a",
+            "mode": "contract",
+            "definition": {"name": "核心巡检", "case_ids": []},
+        },
+    )
+
+    env_response = client.get("/api/v1/catalog/environments")
+    suite_response = client.get("/api/v1/catalog/suites")
+
+    assert env_response.status_code == 200
+    assert env_response.json()[0]["id"] == "local_mock"
+    assert suite_response.status_code == 200
+    assert suite_response.json()[0]["asset_status"] == "draft"
+    assert suite_response.json()[0]["name"] == "核心巡检"
+
+
+def test_used_suite_must_be_copied_before_editing() -> None:
+    client = TestClient(create_app())
+    _seed_target_env_suite_case(client, suite_id="suite-a", case_id="case-a")
+    client.post(
+        "/api/v1/runs",
+        json={
+            "run_id": "run-001",
+            "target_id": "cockpit_agents",
+            "env_id": "local_mock",
+            "suite_ids": ["suite-a"],
+            "execution_topology": "direct",
+        },
+    )
+
+    patch_response = client.patch(
+        "/api/v1/catalog/suites/suite-a",
+        json={"definition": {"name": "不能原地改"}},
+    )
+    copy_response = client.post(
+        "/api/v1/catalog/suites/suite-a/copy",
+        json={"id": "suite-a-v2"},
+    )
+
+    assert patch_response.status_code == 409
+    assert copy_response.status_code == 201
+    assert copy_response.json()["asset_status"] == "draft"
+    assert client.get("/api/v1/catalog/suites/suite-a").json()["asset_status"] == "superseded"
+
+
+def _seed_target_env_suite_case(client: TestClient, *, suite_id: str, case_id: str) -> None:
+    client.post(
+        "/api/v1/catalog/targets",
+        json={
+            "id": "cockpit_agents",
+            "name": "cockpit-agents",
+            "adapter_types": ["http"],
+            "profile": {
+                "supported_modes": ["contract"],
+                "invoke_contract": {"endpoint_template": "/invoke{path}"},
+            },
+        },
+    )
+    client.post(
+        "/api/v1/catalog/environments",
+        json={
+            "id": "local_mock",
+            "name": "local-mock",
+            "profile": {"execution_mode": "direct"},
+        },
+    )
+    client.post(
+        "/api/v1/catalog/suites",
+        json={
+            "id": suite_id,
+            "mode": "contract",
+            "definition": {"name": "核心巡检", "case_ids": [case_id]},
+        },
+    )
+    client.post(
+        "/api/v1/catalog/cases",
+        json={
+            "id": case_id,
+            "suite_id": suite_id,
+            "definition": {"input": {"method": "GET", "path": f"/{case_id}"}},
+        },
+    )

@@ -1,3 +1,6 @@
+from datetime import datetime
+from enum import Enum
+
 from pydantic import BaseModel, Field
 
 
@@ -22,14 +25,36 @@ class EnvironmentRead(EnvironmentCreate):
     pass
 
 
+class AssetStatus(str, Enum):
+    DRAFT = "draft"
+    USED = "used"
+    SUPERSEDED = "superseded"
+
+
 class SuiteCreate(BaseModel):
     id: str = Field(min_length=1)
     mode: str
     definition: dict
 
 
-class SuiteRead(SuiteCreate):
-    pass
+class SuitePatch(BaseModel):
+    definition: dict
+
+
+class SuiteCopyRequest(BaseModel):
+    id: str = Field(min_length=1)
+
+
+class SuiteRead(BaseModel):
+    id: str
+    mode: str
+    name: str
+    definition: dict
+    asset_status: AssetStatus
+    version_group_id: str
+    superseded_by_id: str | None
+    case_count: int
+    updated_at: datetime
 
 
 class CaseCreate(BaseModel):
