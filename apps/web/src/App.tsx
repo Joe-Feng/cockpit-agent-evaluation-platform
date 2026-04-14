@@ -3,9 +3,12 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { BenchmarkImportPage } from "./pages/BenchmarkImportPage";
 import { CaseEditorPage } from "./pages/CaseEditorPage";
+import { CaseHistoryPage } from "./pages/CaseHistoryPage";
+import { RiskCenterPage } from "./pages/RiskCenterPage";
 import { RunCreatePage } from "./pages/RunCreatePage";
 import { RunDetailPage } from "./pages/RunDetailPage";
 import { RunListPage } from "./pages/RunListPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { WorkbenchPage } from "./pages/WorkbenchPage";
 import { SuiteDetailPage } from "./pages/SuiteDetailPage";
 import { SuiteLibraryPage } from "./pages/SuiteLibraryPage";
@@ -68,33 +71,15 @@ export default function App() {
         />
         <Route
           path="/results"
-          element={
-            <PlaceholderPage
-              description="结果模块将在后续任务中承接 case 历史、结果追溯与相关跳转。"
-              eyebrow="结果"
-              title="Case History"
-            />
-          }
+          element={<CaseHistoryPage />}
         />
         <Route
           path="/risks"
-          element={
-            <PlaceholderPage
-              description="风险中心将在后续任务中承接回归信号、告警与处理动作。"
-              eyebrow="风险"
-              title="Risk Center"
-            />
-          }
+          element={<RiskCenterPage />}
         />
         <Route
           path="/settings"
-          element={
-            <PlaceholderPage
-              description="设置模块将在后续任务中承接默认 target、环境与工作台偏好配置。"
-              eyebrow="设置"
-              title="Workbench Settings"
-            />
-          }
+          element={<SettingsPage />}
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

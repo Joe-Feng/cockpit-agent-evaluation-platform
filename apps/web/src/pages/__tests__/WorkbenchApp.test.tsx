@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, test } from "vitest";
 
@@ -16,12 +16,14 @@ describe("workbench app shell", () => {
     );
 
     expect(screen.getByRole("link", { name: "跳到主内容" })).toBeTruthy();
-    expect(screen.getByRole("navigation", { name: "主导航" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /工作台/i })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /测试集/i })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /运行/i })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /结果/i })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /风险/i })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /设置/i })).toBeTruthy();
+    const navigation = screen.getByRole("navigation", { name: "主导航" });
+
+    expect(navigation).toBeTruthy();
+    expect(within(navigation).getByRole("link", { name: /工作台/i })).toBeTruthy();
+    expect(within(navigation).getByRole("link", { name: /测试集/i })).toBeTruthy();
+    expect(within(navigation).getByRole("link", { name: /运行/i })).toBeTruthy();
+    expect(within(navigation).getByRole("link", { name: /结果/i })).toBeTruthy();
+    expect(within(navigation).getByRole("link", { name: /风险/i })).toBeTruthy();
+    expect(within(navigation).getByRole("link", { name: /设置/i })).toBeTruthy();
   });
 });
