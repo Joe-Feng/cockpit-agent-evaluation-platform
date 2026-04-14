@@ -3,6 +3,9 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { BenchmarkImportPage } from "./pages/BenchmarkImportPage";
 import { CaseEditorPage } from "./pages/CaseEditorPage";
+import { RunCreatePage } from "./pages/RunCreatePage";
+import { RunDetailPage } from "./pages/RunDetailPage";
+import { RunListPage } from "./pages/RunListPage";
 import { WorkbenchPage } from "./pages/WorkbenchPage";
 import { SuiteDetailPage } from "./pages/SuiteDetailPage";
 import { SuiteLibraryPage } from "./pages/SuiteLibraryPage";
@@ -53,33 +56,15 @@ export default function App() {
         />
         <Route
           path="/runs"
-          element={
-            <PlaceholderPage
-              description="运行模块将在后续任务中承接 run 列表、创建向导与详情视图。"
-              eyebrow="运行"
-              title="Run Workspace"
-            />
-          }
+          element={<RunListPage />}
         />
         <Route
           path="/runs/new"
-          element={
-            <PlaceholderPage
-              description="创建 Run 向导将在后续任务中接入 suite 选择、环境选择与提交反馈。"
-              eyebrow="运行"
-              title="Create Run"
-            />
-          }
+          element={<RunCreatePage />}
         />
         <Route
           path="/runs/:runId"
-          element={
-            <PlaceholderPage
-              description="Run 详情将在后续任务中承接任务明细、失败证据与报告摘要。"
-              eyebrow="运行"
-              title="Run Detail"
-            />
-          }
+          element={<RunDetailPage />}
         />
         <Route
           path="/results"
