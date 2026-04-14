@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { Layout } from "./components/Layout";
+import { BenchmarkImportPage } from "./pages/BenchmarkImportPage";
+import { CaseEditorPage } from "./pages/CaseEditorPage";
 import { WorkbenchPage } from "./pages/WorkbenchPage";
 import { SuiteDetailPage } from "./pages/SuiteDetailPage";
 import { SuiteLibraryPage } from "./pages/SuiteLibraryPage";
@@ -39,33 +41,15 @@ export default function App() {
         />
         <Route
           path="/cases/new"
-          element={
-            <PlaceholderPage
-              description="Case 新建页将在后续任务中接入结构化表单与版本化编辑流。"
-              eyebrow="测试集"
-              title="Create Case"
-            />
-          }
+          element={<CaseEditorPage />}
         />
         <Route
           path="/cases/:caseId/edit"
-          element={
-            <PlaceholderPage
-              description="Case 编辑页将在后续任务中承接资产冻结与复制为新版本流程。"
-              eyebrow="测试集"
-              title="Edit Case"
-            />
-          }
+          element={<CaseEditorPage />}
         />
         <Route
           path="/imports/benchmark"
-          element={
-            <PlaceholderPage
-              description="Benchmark 导入将在后续任务中补齐包预览、导入状态和来源摘要。"
-              eyebrow="测试集"
-              title="Benchmark Import"
-            />
-          }
+          element={<BenchmarkImportPage />}
         />
         <Route
           path="/runs"

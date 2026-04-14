@@ -80,7 +80,7 @@ export function WorkbenchPage() {
             description={`进入${action.label}工作流`}
             href={action.href}
             key={action.href}
-            title={action.label}
+            title={action.label === "创建 Run" ? "新建 Run" : action.label}
           />
         ))}
       </section>

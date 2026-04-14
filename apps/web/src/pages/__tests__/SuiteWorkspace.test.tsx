@@ -31,4 +31,18 @@ describe("suite workspace", () => {
     expect(screen.getByText("核心巡检")).toBeTruthy();
     expect(screen.getByRole("button", { name: /查看详情/i })).toBeTruthy();
   });
+
+  test("benchmark import previews suite and case counts before submit", async () => {
+    renderWorkbenchRoute("/imports/benchmark");
+
+    expect(await screen.findByRole("heading", { name: "导入 Benchmark Package" })).toBeTruthy();
+    expect(screen.getByText("导入前预览")).toBeTruthy();
+  });
+
+  test("used case editor switches to copy-new-version guidance", async () => {
+    renderWorkbenchRoute("/cases/case-used/edit");
+
+    expect(await screen.findByText("该资产已被运行使用，不能原地修改")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /复制为新版本/i })).toBeTruthy();
+  });
 });
