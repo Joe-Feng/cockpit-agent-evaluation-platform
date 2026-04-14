@@ -1,4 +1,5 @@
-import { mockDashboardApi } from "./mockData";
+import type { RunListRead, SuiteListRead, WorkbenchHome } from "./contracts";
+import { mockDashboardApi, mockWorkbenchApi } from "./mockData";
 
 export type RunSummary = {
   run_id: string;
@@ -96,6 +97,17 @@ export async function fetchJson<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+async function fetchJsonOrMock<T>(path: string, fallback: Promise<T>): Promise<T> {
+  try {
+    return await fetchJson<T>(path);
+  } catch (error) {
+    if (error instanceof Error && /404|501/.test(error.message)) {
+      return fallback;
+    }
+    throw error;
+  }
+}
+
 const realDashboardApi = {
   getTargetOverview(targetId: string) {
     return fetchJson<TargetOverview>(`/api/v1/dashboard/targets/${targetId}`);
@@ -118,3 +130,20 @@ const realDashboardApi = {
 };
 
 export const dashboardApi = shouldUseMockDashboardData() ? mockDashboardApi : realDashboardApi;
+
+const realWorkbenchApi = {
+  getHome(targetId: string) {
+    return fetchJsonOrMock<WorkbenchHome>(
+      `/api/v1/workbench/home?target_id=${targetId}`,
+      mockWorkbenchApi.getHome(targetId),
+    );
+  },
+  listSuites() {
+    return fetchJsonOrMock<SuiteListRead>("/api/v1/workbench/suites", mockWorkbenchApi.listSuites());
+  },
+  listRuns() {
+    return fetchJsonOrMock<RunListRead>("/api/v1/workbench/runs", mockWorkbenchApi.listRuns());
+  },
+};
+
+export const workbenchApi = shouldUseMockDashboardData() ? mockWorkbenchApi : realWorkbenchApi;

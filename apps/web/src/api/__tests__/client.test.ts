@@ -1,6 +1,6 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { shouldUseMockDashboardData } from "../client";
+import { shouldUseMockDashboardData, workbenchApi } from "../client";
 import { mockDashboardApi } from "../mockData";
 
 describe("shouldUseMockDashboardData", () => {
@@ -8,6 +8,28 @@ describe("shouldUseMockDashboardData", () => {
     expect(shouldUseMockDashboardData({ DEV: true, VITEST: false })).toBe(true);
     expect(shouldUseMockDashboardData({ DEV: true, VITEST: true })).toBe(false);
     expect(shouldUseMockDashboardData({ DEV: false, VITEST: false })).toBe(false);
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("workbenchApi", () => {
+  test("falls back to mock previews only for missing read models", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: false,
+        status: 404,
+      })),
+    );
+
+    const home = await workbenchApi.getHome("cockpit_agents");
+    const suites = await workbenchApi.listSuites();
+
+    expect(home.quick_actions[0].href).toBe("/imports/benchmark");
+    expect(suites.items[0].asset_status).toBe("draft");
   });
 });
 

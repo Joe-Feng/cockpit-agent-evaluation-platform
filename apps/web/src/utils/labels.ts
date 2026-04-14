@@ -9,6 +9,9 @@ export function labelForStatus(status: string): string {
     failed: "失败",
     error: "错误",
     queued: "排队中",
+    draft: "草稿",
+    used: "已使用",
+    superseded: "已替换",
     pending: "等待中",
     healthy: "健康",
     ready: "就绪",
@@ -39,6 +42,10 @@ export function labelForSeverity(severity: string): string {
   };
 
   return severityLabels[normalized] ?? severity;
+}
+
+export function labelForAssetStatus(status: string): string {
+  return labelForStatus(status);
 }
 
 export function labelForTopology(topology: string): string {
