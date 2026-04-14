@@ -7,7 +7,15 @@ export function toneForStatus(status: string): Tone {
     return "good";
   }
 
-  if (["failed", "error", "critical", "regressing"].includes(normalized)) {
+  if (["used"].includes(normalized)) {
+    return "warm";
+  }
+
+  if (["draft"].includes(normalized)) {
+    return "neutral";
+  }
+
+  if (["failed", "error", "critical", "regressing", "superseded"].includes(normalized)) {
     return "danger";
   }
 

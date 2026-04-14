@@ -29,6 +29,7 @@ def test_get_run_report_returns_normalized_results_without_baseline(tmp_path) ->
     with runtime.session_factory() as session:
         tasks = _list_tasks_for_run(session, "run-001")
         assert len(tasks) == 1
+        task_id = tasks[0].id
         tasks[0].status = "succeeded"
         _add_artifact(
             session=session,
@@ -69,6 +70,14 @@ def test_get_run_report_returns_normalized_results_without_baseline(tmp_path) ->
                 "error_message": None,
             }
         ],
+        "task_items": [
+            {
+                "task_id": task_id,
+                "status": "succeeded",
+                "adapter_type": "http",
+                "artifact_excerpt": '{"response_text":"pong"}',
+            }
+        ],
         "regression_signals": [],
     }
 
@@ -85,6 +94,7 @@ def test_get_run_report_returns_high_severity_regression_signal_when_pass_rate_d
         current_tasks = _list_tasks_for_run(session, "run-002")
         assert len(baseline_tasks) == 2
         assert len(current_tasks) == 2
+        current_task_ids = [task.id for task in current_tasks]
         for task in baseline_tasks:
             task.status = "succeeded"
         current_tasks[0].status = "succeeded"
@@ -105,6 +115,20 @@ def test_get_run_report_returns_high_severity_regression_signal_when_pass_rate_d
         "task_count": 2,
         "passed_count": 1,
         "normalized_results": [],
+        "task_items": [
+            {
+                "task_id": current_task_ids[0],
+                "status": "succeeded",
+                "adapter_type": "http",
+                "artifact_excerpt": None,
+            },
+            {
+                "task_id": current_task_ids[1],
+                "status": "failed",
+                "adapter_type": "http",
+                "artifact_excerpt": None,
+            },
+        ],
         "regression_signals": [
             {
                 "metric_id": "pass_rate",
@@ -125,6 +149,7 @@ def test_get_run_report_skips_regression_signals_for_in_progress_run() -> None:
     with runtime.session_factory() as session:
         baseline_tasks = _list_tasks_for_run(session, "run-001")
         current_tasks = _list_tasks_for_run(session, "run-002")
+        current_task_ids = [task.id for task in current_tasks]
         for task in baseline_tasks:
             task.status = "succeeded"
         current_tasks[0].status = "succeeded"
@@ -134,6 +159,20 @@ def test_get_run_report_skips_regression_signals_for_in_progress_run() -> None:
 
     assert response.status_code == 200
     assert response.json()["status"] == "running"
+    assert response.json()["task_items"] == [
+        {
+            "task_id": current_task_ids[0],
+            "status": "succeeded",
+            "adapter_type": "http",
+            "artifact_excerpt": None,
+        },
+        {
+            "task_id": current_task_ids[1],
+            "status": "queued",
+            "adapter_type": "http",
+            "artifact_excerpt": None,
+        },
+    ]
     assert response.json()["regression_signals"] == []
 
 
@@ -147,6 +186,7 @@ def test_get_run_report_ignores_incomplete_baseline_run_for_regression() -> None
     with runtime.session_factory() as session:
         baseline_tasks = _list_tasks_for_run(session, "run-001")
         current_tasks = _list_tasks_for_run(session, "run-002")
+        current_task_ids = [task.id for task in current_tasks]
         baseline_tasks[0].status = "succeeded"
         current_tasks[0].status = "failed"
         current_tasks[1].status = "failed"
@@ -156,6 +196,20 @@ def test_get_run_report_ignores_incomplete_baseline_run_for_regression() -> None
 
     assert response.status_code == 200
     assert response.json()["status"] == "failed"
+    assert response.json()["task_items"] == [
+        {
+            "task_id": current_task_ids[0],
+            "status": "failed",
+            "adapter_type": "http",
+            "artifact_excerpt": None,
+        },
+        {
+            "task_id": current_task_ids[1],
+            "status": "failed",
+            "adapter_type": "http",
+            "artifact_excerpt": None,
+        },
+    ]
     assert response.json()["regression_signals"] == []
 
 
@@ -168,6 +222,7 @@ def test_get_run_report_returns_empty_regression_signals_without_comparable_base
     with runtime.session_factory() as session:
         tasks = _list_tasks_for_run(session, "run-001")
         assert len(tasks) == 1
+        task_id = tasks[0].id
         tasks[0].status = "succeeded"
         session.commit()
 
@@ -185,6 +240,14 @@ def test_get_run_report_returns_empty_regression_signals_without_comparable_base
         "task_count": 1,
         "passed_count": 1,
         "normalized_results": [],
+        "task_items": [
+            {
+                "task_id": task_id,
+                "status": "succeeded",
+                "adapter_type": "http",
+                "artifact_excerpt": None,
+            }
+        ],
         "regression_signals": [],
     }
 

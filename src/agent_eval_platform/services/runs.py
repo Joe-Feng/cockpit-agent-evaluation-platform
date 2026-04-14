@@ -28,8 +28,10 @@ class RunService:
 
         task_count = 0
         for suite_id in payload.suite_ids:
+            self.repository.mark_suite_used(suite_id)
             run_suite = self.repository.add_suite_instance(payload.run_id, suite_id)
             for case in self.repository.get_cases_for_suite(suite_id):
+                self.repository.mark_case_used(case.id)
                 run_case = self.repository.add_case_instance(run_suite.id, case.id)
                 adapter_type, dispatch_payload = self._build_dispatch_payload(
                     case=case,

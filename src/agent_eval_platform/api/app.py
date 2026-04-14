@@ -7,6 +7,7 @@ from agent_eval_platform.api.routes.dashboard import router as dashboard_router
 from agent_eval_platform.api.routes.imports import router as imports_router
 from agent_eval_platform.api.routes.reports import router as reports_router
 from agent_eval_platform.api.routes.runs import router as runs_router
+from agent_eval_platform.api.routes.workbench import router as workbench_router
 from agent_eval_platform.config import Settings
 
 
@@ -24,6 +25,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(imports_router)
     app.include_router(reports_router)
     app.include_router(runs_router)
+    app.include_router(workbench_router)
     app.include_router(dashboard_router)
     app.include_router(alerts_router)
     return app

@@ -1,9 +1,10 @@
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 
 type ResourceState<T> = {
   data: T;
   loading: boolean;
   error: string | null;
+  refresh: () => void;
 };
 
 export function useResource<T>(
@@ -11,21 +12,28 @@ export function useResource<T>(
   initialData: T,
   deps: readonly unknown[],
 ): ResourceState<T> {
+  const [refreshToken, setRefreshToken] = useState(0);
+  const loaderRef = useRef(loader);
   const [state, setState] = useState<ResourceState<T>>({
     data: initialData,
     loading: true,
     error: null,
+    refresh: () => setRefreshToken((token) => token + 1),
   });
+
+  loaderRef.current = loader;
 
   useEffect(() => {
     let active = true;
+    const refresh = () => setRefreshToken((token) => token + 1);
     setState({
       data: initialData,
       loading: true,
       error: null,
+      refresh,
     });
 
-    loader()
+    loaderRef.current()
       .then((data) => {
         if (!active) {
           return;
@@ -35,6 +43,7 @@ export function useResource<T>(
             data,
             loading: false,
             error: null,
+            refresh,
           });
         });
       })
@@ -48,6 +57,7 @@ export function useResource<T>(
             data: initialData,
             loading: false,
             error: message,
+            refresh,
           });
         });
       });
@@ -55,7 +65,7 @@ export function useResource<T>(
     return () => {
       active = false;
     };
-  }, deps);
+  }, [initialData, refreshToken, ...deps]);
 
   return state;
 }

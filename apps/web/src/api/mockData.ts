@@ -1,4 +1,11 @@
 import type {
+  QuickAction,
+  RunListRead,
+  SuiteListRead,
+  SummaryCard,
+  WorkbenchHome,
+} from "./contracts";
+import type {
   AlertEvent,
   CaseExplorer,
   RegressionSignal,
@@ -212,5 +219,99 @@ export const mockDashboardApi = {
     return {
       items: clone(mockOpenAlerts),
     };
+  },
+};
+
+const mockWorkbenchSummaryCards: SummaryCard[] = [
+  {
+    id: "suite-count",
+    label: "测试集",
+    value: "12",
+    detail: "已接入的 suite 数量",
+    tone: "neutral",
+  },
+  {
+    id: "run-count",
+    label: "近次运行",
+    value: "3",
+    detail: "最近进入工作台视图的运行",
+    tone: "good",
+  },
+  {
+    id: "risk-count",
+    label: "风险条目",
+    value: "2",
+    detail: "需要人工处理的信号",
+    tone: "warm",
+  },
+];
+
+const mockQuickActions: QuickAction[] = [
+  { label: "导入测试包", href: "/imports/benchmark", tone: "primary" },
+  { label: "查看测试集", href: "/suites", tone: "neutral" },
+  { label: "新建 Run", href: "/runs/new", tone: "neutral" },
+];
+
+const mockSuiteList: SuiteListRead = {
+  items: [
+    {
+      id: "suite-a",
+      name: "核心巡检",
+      mode: "contract",
+      case_count: 14,
+      asset_status: "draft",
+      updated_at: "2026-04-14T00:00:00Z",
+    },
+    {
+      id: "suite-b",
+      name: "工具调用稳定性",
+      mode: "contract",
+      case_count: 9,
+      asset_status: "used",
+      updated_at: "2026-04-13T20:00:00Z",
+    },
+  ],
+};
+
+const mockRunList: RunListRead = {
+  items: [
+    {
+      run_id: "run-240409-02",
+      status: "running",
+      target_id: "cockpit_agents",
+      env_id: "生产影子",
+      suite_ids: ["核心巡检", "稳定性回归"],
+      task_count: 52,
+      passed_count: 39,
+      created_at: "2026-04-09T12:18:00Z",
+    },
+    {
+      run_id: "run-240409-01",
+      status: "succeeded",
+      target_id: "cockpit_agents",
+      env_id: "预发环境",
+      suite_ids: ["接口回归"],
+      task_count: 48,
+      passed_count: 48,
+      created_at: "2026-04-09T09:42:00Z",
+    },
+  ],
+};
+
+export const mockWorkbenchApi = {
+  async getHome(targetId: string): Promise<WorkbenchHome> {
+    return {
+      target_id: targetId,
+      summary_cards: clone(mockWorkbenchSummaryCards),
+      quick_actions: clone(mockQuickActions),
+      recent_runs: clone(mockRunList.items),
+      risk_items: clone(mockOpenAlerts),
+    };
+  },
+  async listSuites(): Promise<SuiteListRead> {
+    return clone(mockSuiteList);
+  },
+  async listRuns(): Promise<RunListRead> {
+    return clone(mockRunList);
   },
 };

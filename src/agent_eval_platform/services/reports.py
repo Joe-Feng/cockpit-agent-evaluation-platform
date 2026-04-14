@@ -38,7 +38,15 @@ class ReportService:
             leased_count=leased_count,
             queued_count=queued_count,
         )
-        normalized_results = self._build_normalized_results(run_id=run.id, target_id=run.target_id)
+        tasks = self.repository.list_execution_tasks_for_run(run_id)
+        artifacts = self.repository.list_execution_result_artifacts([task.id for task in tasks])
+        artifacts_by_task_id = {artifact.owner_id: artifact for artifact in artifacts}
+        normalized_results = self._build_normalized_results(
+            target_id=run.target_id,
+            tasks=tasks,
+            artifacts_by_task_id=artifacts_by_task_id,
+        )
+        task_items = self._build_task_items(tasks=tasks, artifacts_by_task_id=artifacts_by_task_id)
         regression_signals = self._build_regression_signals(
             run=run,
             run_status=report_status,
@@ -57,6 +65,7 @@ class ReportService:
             "task_count": task_count,
             "passed_count": passed_count,
             "normalized_results": normalized_results,
+            "task_items": task_items,
             "regression_signals": regression_signals,
         }
 
@@ -87,15 +96,17 @@ class ReportService:
             passed_count=passed_count,
         )
 
-    def _build_normalized_results(self, *, run_id: str, target_id: str) -> list[dict[str, Any]]:
+    def _build_normalized_results(
+        self,
+        *,
+        target_id: str,
+        tasks: list[Any],
+        artifacts_by_task_id: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         target_profile = self.repository.get_target_profile(target_id)
         result_mapping = target_profile.get("result_mapping")
         if not isinstance(result_mapping, Mapping) or not result_mapping:
             return []
-
-        tasks = self.repository.list_execution_tasks_for_run(run_id)
-        artifacts = self.repository.list_execution_result_artifacts([task.id for task in tasks])
-        artifacts_by_task_id = {artifact.owner_id: artifact for artifact in artifacts}
 
         normalized_results: list[dict[str, Any]] = []
         for task in tasks:
@@ -105,6 +116,24 @@ class ReportService:
             if isinstance(body, Mapping):
                 normalized_results.append(normalize_http_result(body, result_mapping))
         return normalized_results
+
+    def _build_task_items(
+        self,
+        *,
+        tasks: list[Any],
+        artifacts_by_task_id: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        task_items: list[dict[str, Any]] = []
+        for task in tasks:
+            task_items.append(
+                {
+                    "task_id": task.id,
+                    "status": task.status,
+                    "adapter_type": task.adapter_type,
+                    "artifact_excerpt": self._read_artifact_excerpt(artifacts_by_task_id.get(task.id)),
+                }
+            )
+        return task_items
 
     def _build_regression_signals(
         self,
@@ -178,6 +207,22 @@ class ReportService:
 
     @staticmethod
     def _read_artifact_body(artifact: Any | None) -> Mapping[str, Any] | None:
+        payload = ReportService._read_artifact_payload(artifact)
+        if payload is None:
+            return None
+        body = payload.get("body")
+        return body if isinstance(body, Mapping) else None
+
+    @staticmethod
+    def _read_artifact_excerpt(artifact: Any | None) -> str | None:
+        payload = ReportService._read_artifact_payload(artifact)
+        if payload is None:
+            return None
+        raw_text = payload.get("raw_text")
+        return raw_text if isinstance(raw_text, str) else None
+
+    @staticmethod
+    def _read_artifact_payload(artifact: Any | None) -> Mapping[str, Any] | None:
         if artifact is None:
             return None
         try:
@@ -186,8 +231,7 @@ class ReportService:
             return None
         if not isinstance(payload, Mapping):
             return None
-        body = payload.get("body")
-        return body if isinstance(body, Mapping) else None
+        return payload
 
     def _is_completed_run(self, run: RunRecord) -> bool:
         task_count = self.repository.count_tasks_for_run(run.id)

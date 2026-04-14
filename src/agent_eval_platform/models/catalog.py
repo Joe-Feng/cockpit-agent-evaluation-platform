@@ -38,6 +38,9 @@ class SuiteRecord(TimestampMixin, Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     mode: Mapped[str] = mapped_column(String(64), nullable=False)
     raw_definition_json: Mapped[str] = mapped_column(Text, nullable=False)
+    asset_status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft", index=True)
+    version_group_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    superseded_by_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
 
 
 class CaseRecord(TimestampMixin, Base):
@@ -46,3 +49,6 @@ class CaseRecord(TimestampMixin, Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     suite_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     raw_definition_json: Mapped[str] = mapped_column(Text, nullable=False)
+    asset_status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft", index=True)
+    version_group_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    superseded_by_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)

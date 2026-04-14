@@ -7,6 +7,7 @@ from sqlalchemy import select
 from agent_eval_platform.api.app import create_app
 from agent_eval_platform.config import Settings
 from agent_eval_platform.models.analysis import ArtifactRecord
+from agent_eval_platform.models.catalog import CaseRecord, SuiteRecord
 from agent_eval_platform.models.run import (
     ExecutionAttemptRecord,
     ExecutionTaskRecord,
@@ -389,6 +390,59 @@ def test_create_run_rejects_missing_suite() -> None:
     payload = response.json()
     assert response.status_code == 404
     assert "missing-suite" in payload["detail"]
+
+
+def test_create_run_marks_suite_and_case_assets_as_used() -> None:
+    client = TestClient(create_app())
+
+    client.post(
+        "/api/v1/catalog/targets",
+        json={
+            "id": "cockpit_agents",
+            "name": "cockpit-agents",
+            "adapter_types": ["http"],
+            "profile": {"supported_modes": ["contract"]},
+        },
+    )
+    client.post(
+        "/api/v1/catalog/environments",
+        json={"id": "local_mock", "name": "local-mock", "profile": {"execution_mode": "direct"}},
+    )
+    client.post(
+        "/api/v1/catalog/suites",
+        json={"id": "cockpit.contract.api", "mode": "contract", "definition": {"case_ids": ["health-001"]}},
+    )
+    client.post(
+        "/api/v1/catalog/cases",
+        json={
+            "id": "health-001",
+            "suite_id": "cockpit.contract.api",
+            "definition": {"input": {"method": "GET", "path": "/health"}},
+        },
+    )
+
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "run_id": "run-asset-status-001",
+            "target_id": "cockpit_agents",
+            "env_id": "local_mock",
+            "suite_ids": ["cockpit.contract.api"],
+            "execution_topology": "direct",
+        },
+    )
+
+    assert response.status_code == 201
+
+    runtime = client.app.state.runtime
+    with runtime.session_factory() as session:
+        suite = session.get(SuiteRecord, "cockpit.contract.api")
+        case = session.get(CaseRecord, "health-001")
+
+    assert suite is not None
+    assert case is not None
+    assert suite.asset_status == "used"
+    assert case.asset_status == "used"
 
 
 def test_complete_runner_task_persists_raw_result_artifact(tmp_path) -> None:
