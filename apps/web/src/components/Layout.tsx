@@ -19,7 +19,7 @@ export function Layout() {
       <aside className="shell-nav">
         <div className="shell-brand">
           <p className="eyebrow">Cockpit</p>
-          <h1>Evaluation Workbench</h1>
+          <h1>评测驾驶舱</h1>
           <p className="body-muted">面向测试与算法团队的高密度评测工作台。</p>
         </div>
 
@@ -56,7 +56,7 @@ export function Layout() {
             <span className="shell-chip">cockpit_agents</span>
             <span className="shell-chip">Evaluation Workbench</span>
             <NavLink className="shell-cta" to="/runs/new">
-              新建 Run
+              开始运行
             </NavLink>
           </div>
         </header>

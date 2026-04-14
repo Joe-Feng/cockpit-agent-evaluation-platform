@@ -1,6 +1,9 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { Layout } from "./components/Layout";
+import { WorkbenchPage } from "./pages/WorkbenchPage";
+import { SuiteDetailPage } from "./pages/SuiteDetailPage";
+import { SuiteLibraryPage } from "./pages/SuiteLibraryPage";
 
 type PlaceholderPageProps = {
   eyebrow: string;
@@ -24,33 +27,15 @@ export default function App() {
       <Route element={<Layout />}>
         <Route
           path="/"
-          element={
-            <PlaceholderPage
-              description="工作台首页将在后续任务中承接摘要卡片、快捷动作与最近运行流。"
-              eyebrow="工作台"
-              title="Evaluation Workbench"
-            />
-          }
+          element={<WorkbenchPage />}
         />
         <Route
           path="/suites"
-          element={
-            <PlaceholderPage
-              description="测试集模块将在后续任务中承接 suite 列表、详情、导入与编辑流。"
-              eyebrow="测试集"
-              title="Suite Library"
-            />
-          }
+          element={<SuiteLibraryPage />}
         />
         <Route
           path="/suites/:suiteId"
-          element={
-            <PlaceholderPage
-              description="Suite 详情页将在后续任务中承接资产状态、用例清单与操作抽屉。"
-              eyebrow="测试集"
-              title="Suite Detail"
-            />
-          }
+          element={<SuiteDetailPage />}
         />
         <Route
           path="/cases/new"

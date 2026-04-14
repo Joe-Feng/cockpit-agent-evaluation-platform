@@ -101,7 +101,10 @@ async function fetchJsonOrMock<T>(path: string, fallback: Promise<T>): Promise<T
   try {
     return await fetchJson<T>(path);
   } catch (error) {
-    if (error instanceof Error && /404|501/.test(error.message)) {
+    if (
+      error instanceof Error &&
+      /404|501|Failed to parse URL|fetch is not defined|Failed to fetch/i.test(error.message)
+    ) {
       return fallback;
     }
     throw error;

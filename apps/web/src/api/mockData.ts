@@ -247,9 +247,9 @@ const mockWorkbenchSummaryCards: SummaryCard[] = [
 ];
 
 const mockQuickActions: QuickAction[] = [
-  { label: "导入 Benchmark", href: "/imports/benchmark", tone: "primary" },
+  { label: "导入测试包", href: "/imports/benchmark", tone: "primary" },
   { label: "查看测试集", href: "/suites", tone: "neutral" },
-  { label: "创建 Run", href: "/runs/new", tone: "neutral" },
+  { label: "新建 Run", href: "/runs/new", tone: "neutral" },
 ];
 
 const mockSuiteList: SuiteListRead = {

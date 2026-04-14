@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 
 type ResourceState<T> = {
   data: T;
@@ -13,12 +13,15 @@ export function useResource<T>(
   deps: readonly unknown[],
 ): ResourceState<T> {
   const [refreshToken, setRefreshToken] = useState(0);
+  const loaderRef = useRef(loader);
   const [state, setState] = useState<ResourceState<T>>({
     data: initialData,
     loading: true,
     error: null,
     refresh: () => setRefreshToken((token) => token + 1),
   });
+
+  loaderRef.current = loader;
 
   useEffect(() => {
     let active = true;
@@ -30,7 +33,7 @@ export function useResource<T>(
       refresh,
     });
 
-    loader()
+    loaderRef.current()
       .then((data) => {
         if (!active) {
           return;
@@ -62,7 +65,7 @@ export function useResource<T>(
     return () => {
       active = false;
     };
-  }, [initialData, loader, refreshToken, ...deps]);
+  }, [initialData, refreshToken, ...deps]);
 
   return state;
 }
